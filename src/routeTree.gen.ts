@@ -15,6 +15,7 @@ import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as ProctorRouteImport } from './routes/proctor'
 import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResultsRouteImport } from './routes/results'
 import { Route as ExamCheckRouteImport } from './routes/exam.check'
 import { Route as ExamLiveRouteImport } from './routes/exam.live'
 import { Route as ExamRulesRouteImport } from './routes/exam.rules'
@@ -49,6 +50,11 @@ const RegisterRoute = RegisterRouteImport.update({
   path: '/register',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ResultsRoute = ResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExamCheckRoute = ExamCheckRouteImport.update({
   id: '/exam/check',
   path: '/exam/check',
@@ -72,6 +78,7 @@ export interface FileRoutesByFullPath {
   '/faculty': typeof FacultyRoute
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
@@ -83,6 +90,7 @@ export interface FileRoutesByTo {
   '/faculty': typeof FacultyRoute
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
@@ -95,6 +103,7 @@ export interface FileRoutesById {
   '/faculty': typeof FacultyRoute
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
@@ -108,6 +117,7 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/proctor'
     | '/register'
+    | '/results'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
@@ -119,6 +129,7 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/proctor'
     | '/register'
+    | '/results'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
@@ -130,6 +141,7 @@ export interface FileRouteTypes {
     | '/faculty'
     | '/proctor'
     | '/register'
+    | '/results'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
@@ -142,6 +154,7 @@ export interface RootRouteChildren {
   FacultyRoute: typeof FacultyRoute
   ProctorRoute: typeof ProctorRoute
   RegisterRoute: typeof RegisterRoute
+  ResultsRoute: typeof ResultsRoute
   ExamCheckRoute: typeof ExamCheckRoute
   ExamLiveRoute: typeof ExamLiveRoute
   ExamRulesRoute: typeof ExamRulesRoute
@@ -191,6 +204,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RegisterRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/results': {
+      id: '/results'
+      path: '/results'
+      fullPath: '/results'
+      preLoaderRoute: typeof ResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/exam/check': {
       id: '/exam/check'
       path: '/exam/check'
@@ -222,6 +242,7 @@ const rootRouteChildren: RootRouteChildren = {
   FacultyRoute: FacultyRoute,
   ProctorRoute: ProctorRoute,
   RegisterRoute: RegisterRoute,
+  ResultsRoute: ResultsRoute,
   ExamCheckRoute: ExamCheckRoute,
   ExamLiveRoute: ExamLiveRoute,
   ExamRulesRoute: ExamRulesRoute,
