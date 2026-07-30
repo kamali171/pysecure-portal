@@ -10,33 +10,154 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as FacultyRouteImport } from './routes/faculty'
+import { Route as ProctorRouteImport } from './routes/proctor'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as ResultsRouteImport } from './routes/results'
+import { Route as ExamCheckRouteImport } from './routes/exam.check'
+import { Route as ExamLiveRouteImport } from './routes/exam.live'
+import { Route as ExamRulesRouteImport } from './routes/exam.rules'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const FacultyRoute = FacultyRouteImport.update({
+  id: '/faculty',
+  path: '/faculty',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProctorRoute = ProctorRouteImport.update({
+  id: '/proctor',
+  path: '/proctor',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ResultsRoute = ResultsRouteImport.update({
+  id: '/results',
+  path: '/results',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamCheckRoute = ExamCheckRouteImport.update({
+  id: '/exam/check',
+  path: '/exam/check',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamLiveRoute = ExamLiveRouteImport.update({
+  id: '/exam/live',
+  path: '/exam/live',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ExamRulesRoute = ExamRulesRouteImport.update({
+  id: '/exam/rules',
+  path: '/exam/rules',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/faculty': typeof FacultyRoute
+  '/proctor': typeof ProctorRoute
+  '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
+  '/exam/check': typeof ExamCheckRoute
+  '/exam/live': typeof ExamLiveRoute
+  '/exam/rules': typeof ExamRulesRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/faculty': typeof FacultyRoute
+  '/proctor': typeof ProctorRoute
+  '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
+  '/exam/check': typeof ExamCheckRoute
+  '/exam/live': typeof ExamLiveRoute
+  '/exam/rules': typeof ExamRulesRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRoute
+  '/dashboard': typeof DashboardRoute
+  '/faculty': typeof FacultyRoute
+  '/proctor': typeof ProctorRoute
+  '/register': typeof RegisterRoute
+  '/results': typeof ResultsRoute
+  '/exam/check': typeof ExamCheckRoute
+  '/exam/live': typeof ExamLiveRoute
+  '/exam/rules': typeof ExamRulesRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/faculty'
+    | '/proctor'
+    | '/register'
+    | '/results'
+    | '/exam/check'
+    | '/exam/live'
+    | '/exam/rules'
   fileRoutesByTo: FileRoutesByTo
-  to: '/'
-  id: '__root__' | '/'
+  to:
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/faculty'
+    | '/proctor'
+    | '/register'
+    | '/results'
+    | '/exam/check'
+    | '/exam/live'
+    | '/exam/rules'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/dashboard'
+    | '/faculty'
+    | '/proctor'
+    | '/register'
+    | '/results'
+    | '/exam/check'
+    | '/exam/live'
+    | '/exam/rules'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRoute
+  DashboardRoute: typeof DashboardRoute
+  FacultyRoute: typeof FacultyRoute
+  ProctorRoute: typeof ProctorRoute
+  RegisterRoute: typeof RegisterRoute
+  ResultsRoute: typeof ResultsRoute
+  ExamCheckRoute: typeof ExamCheckRoute
+  ExamLiveRoute: typeof ExamLiveRoute
+  ExamRulesRoute: typeof ExamRulesRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -48,22 +169,84 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/faculty': {
+      id: '/faculty'
+      path: '/faculty'
+      fullPath: '/faculty'
+      preLoaderRoute: typeof FacultyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/proctor': {
+      id: '/proctor'
+      path: '/proctor'
+      fullPath: '/proctor'
+      preLoaderRoute: typeof ProctorRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/results': {
+      id: '/results'
+      path: '/results'
+      fullPath: '/results'
+      preLoaderRoute: typeof ResultsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exam/check': {
+      id: '/exam/check'
+      path: '/exam/check'
+      fullPath: '/exam/check'
+      preLoaderRoute: typeof ExamCheckRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exam/live': {
+      id: '/exam/live'
+      path: '/exam/live'
+      fullPath: '/exam/live'
+      preLoaderRoute: typeof ExamLiveRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/exam/rules': {
+      id: '/exam/rules'
+      path: '/exam/rules'
+      fullPath: '/exam/rules'
+      preLoaderRoute: typeof ExamRulesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRoute,
+  DashboardRoute: DashboardRoute,
+  FacultyRoute: FacultyRoute,
+  ProctorRoute: ProctorRoute,
+  RegisterRoute: RegisterRoute,
+  ResultsRoute: ResultsRoute,
+  ExamCheckRoute: ExamCheckRoute,
+  ExamLiveRoute: ExamLiveRoute,
+  ExamRulesRoute: ExamRulesRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}
