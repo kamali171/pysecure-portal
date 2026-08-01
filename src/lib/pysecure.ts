@@ -123,7 +123,11 @@ const KEYS = {
   violations: "pysecure.violations",
   session: "pysecure.session",
   notices: "pysecure.notices",
+  submissions: "pysecure.submissions",
+  history: "pysecure.editHistory",
+  draft: "pysecure.facultyDraft",
 };
+
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
