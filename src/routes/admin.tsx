@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell, PageTitle } from "@/components/app-shell";
 import { Badge } from "@/components/ui/badge";
@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/table";
 import {
   getResults,
+  getSession,
   getStudents,
   getTests,
   getViolations,
@@ -24,6 +25,12 @@ import { GraduationCap, ListChecks, ShieldAlert, Users } from "lucide-react";
 
 export const Route = createFileRoute("/admin")({
   ssr: false,
+  beforeLoad: () => {
+    const session = getSession();
+    if (!session || session.role !== "admin") {
+      throw redirect({ to: "/admin/login" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Admin Dashboard — PySecure KIOT" },
@@ -42,17 +49,23 @@ export const Route = createFileRoute("/admin")({
 const COLORS = ["var(--brand)", "var(--brand-soft)", "var(--success)", "var(--warning)", "var(--destructive)"];
 
 function Admin() {
+  const router = useRouter();
   const [students, setStudents] = useState<Student[]>([]);
   const [results, setResults] = useState<Result[]>([]);
   const [violations, setViolations] = useState<Violation[]>([]);
   const [testCount, setTestCount] = useState(0);
 
   useEffect(() => {
+    const session = getSession();
+    if (!session || session.role !== "admin") {
+      router.navigate({ to: "/admin/login" });
+      return;
+    }
     setStudents(getStudents());
     setResults(getResults());
     setViolations(getViolations());
     setTestCount(getTests().length);
-  }, []);
+  }, [router]);
 
   const byDept = Object.entries(
     students.reduce<Record<string, number>>((acc, s) => {

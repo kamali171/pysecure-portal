@@ -16,9 +16,12 @@ import { Route as FacultyRouteImport } from './routes/faculty'
 import { Route as ProctorRouteImport } from './routes/proctor'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as ResultsRouteImport } from './routes/results'
+import { Route as AdminLoginRouteImport } from './routes/admin.login'
 import { Route as ExamCheckRouteImport } from './routes/exam.check'
 import { Route as ExamLiveRouteImport } from './routes/exam.live'
 import { Route as ExamRulesRouteImport } from './routes/exam.rules'
+import { Route as FacultyLoginRouteImport } from './routes/faculty.login'
+import { Route as StudentLoginRouteImport } from './routes/student.login'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -55,6 +58,11 @@ const ResultsRoute = ResultsRouteImport.update({
   path: '/results',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminLoginRoute = AdminLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AdminRoute,
+} as any)
 const ExamCheckRoute = ExamCheckRouteImport.update({
   id: '/exam/check',
   path: '/exam/check',
@@ -70,43 +78,62 @@ const ExamRulesRoute = ExamRulesRouteImport.update({
   path: '/exam/rules',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FacultyLoginRoute = FacultyLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => FacultyRoute,
+} as any)
+const StudentLoginRoute = StudentLoginRouteImport.update({
+  id: '/student/login',
+  path: '/student/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/faculty': typeof FacultyRoute
+  '/faculty': typeof FacultyRouteWithChildren
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
   '/results': typeof ResultsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
+  '/faculty/login': typeof FacultyLoginRoute
+  '/student/login': typeof StudentLoginRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/faculty': typeof FacultyRoute
+  '/faculty': typeof FacultyRouteWithChildren
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
   '/results': typeof ResultsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
+  '/faculty/login': typeof FacultyLoginRoute
+  '/student/login': typeof StudentLoginRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/admin': typeof AdminRoute
+  '/admin': typeof AdminRouteWithChildren
   '/dashboard': typeof DashboardRoute
-  '/faculty': typeof FacultyRoute
+  '/faculty': typeof FacultyRouteWithChildren
   '/proctor': typeof ProctorRoute
   '/register': typeof RegisterRoute
   '/results': typeof ResultsRoute
+  '/admin/login': typeof AdminLoginRoute
   '/exam/check': typeof ExamCheckRoute
   '/exam/live': typeof ExamLiveRoute
   '/exam/rules': typeof ExamRulesRoute
+  '/faculty/login': typeof FacultyLoginRoute
+  '/student/login': typeof StudentLoginRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -118,9 +145,12 @@ export interface FileRouteTypes {
     | '/proctor'
     | '/register'
     | '/results'
+    | '/admin/login'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
+    | '/faculty/login'
+    | '/student/login'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -130,9 +160,12 @@ export interface FileRouteTypes {
     | '/proctor'
     | '/register'
     | '/results'
+    | '/admin/login'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
+    | '/faculty/login'
+    | '/student/login'
   id:
     | '__root__'
     | '/'
@@ -142,22 +175,26 @@ export interface FileRouteTypes {
     | '/proctor'
     | '/register'
     | '/results'
+    | '/admin/login'
     | '/exam/check'
     | '/exam/live'
     | '/exam/rules'
+    | '/faculty/login'
+    | '/student/login'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AdminRoute: typeof AdminRoute
+  AdminRoute: typeof AdminRouteWithChildren
   DashboardRoute: typeof DashboardRoute
-  FacultyRoute: typeof FacultyRoute
+  FacultyRoute: typeof FacultyRouteWithChildren
   ProctorRoute: typeof ProctorRoute
   RegisterRoute: typeof RegisterRoute
   ResultsRoute: typeof ResultsRoute
   ExamCheckRoute: typeof ExamCheckRoute
   ExamLiveRoute: typeof ExamLiveRoute
   ExamRulesRoute: typeof ExamRulesRoute
+  StudentLoginRoute: typeof StudentLoginRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -211,6 +248,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ResultsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/login': {
+      id: '/admin/login'
+      path: '/login'
+      fullPath: '/admin/login'
+      preLoaderRoute: typeof AdminLoginRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/exam/check': {
       id: '/exam/check'
       path: '/exam/check'
@@ -232,21 +276,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExamRulesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/faculty/login': {
+      id: '/faculty/login'
+      path: '/login'
+      fullPath: '/faculty/login'
+      preLoaderRoute: typeof FacultyLoginRouteImport
+      parentRoute: typeof FacultyRoute
+    }
+    '/student/login': {
+      id: '/student/login'
+      path: '/student/login'
+      fullPath: '/student/login'
+      preLoaderRoute: typeof StudentLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
+interface AdminRouteChildren {
+  AdminLoginRoute: typeof AdminLoginRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminLoginRoute: AdminLoginRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface FacultyRouteChildren {
+  FacultyLoginRoute: typeof FacultyLoginRoute
+}
+
+const FacultyRouteChildren: FacultyRouteChildren = {
+  FacultyLoginRoute: FacultyLoginRoute,
+}
+
+const FacultyRouteWithChildren =
+  FacultyRoute._addFileChildren(FacultyRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AdminRoute: AdminRoute,
+  AdminRoute: AdminRouteWithChildren,
   DashboardRoute: DashboardRoute,
-  FacultyRoute: FacultyRoute,
+  FacultyRoute: FacultyRouteWithChildren,
   ProctorRoute: ProctorRoute,
   RegisterRoute: RegisterRoute,
   ResultsRoute: ResultsRoute,
   ExamCheckRoute: ExamCheckRoute,
   ExamLiveRoute: ExamLiveRoute,
   ExamRulesRoute: ExamRulesRoute,
+  StudentLoginRoute: StudentLoginRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

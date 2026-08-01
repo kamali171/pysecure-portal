@@ -1,4 +1,4 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
+import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { AppShell, PageTitle } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,12 @@ import { Bell, CalendarClock, PlayCircle, Timer, TrendingUp, Trophy } from "luci
 
 export const Route = createFileRoute("/dashboard")({
   ssr: false,
+  beforeLoad: () => {
+    const session = getSession();
+    if (!session || session.role !== "student") {
+      throw redirect({ to: "/student/login" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Student Dashboard — PySecure KIOT" },
@@ -49,11 +55,11 @@ function Dashboard() {
 
   useEffect(() => {
     const s = getSession();
-    if (!s) {
-      router.navigate({ to: "/" });
+    if (!s || s.role !== "student") {
+      router.navigate({ to: "/student/login" });
       return;
     }
-    setStudent(s);
+    setStudent(s as Student);
     setResults(getResults(s.id));
     setTest(activeTest());
   }, [router]);

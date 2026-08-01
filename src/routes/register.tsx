@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { addStudent, DEPARTMENTS, SECTIONS, setSession, uid, YEARS } from "@/lib/pysecure";
+import { addStudent, DEPARTMENTS, SECTIONS, setSession, uid, YEARS, type AuthSession } from "@/lib/pysecure";
 import { UserRoundPlus } from "lucide-react";
 import { z } from "zod";
 
@@ -93,7 +93,19 @@ function Register() {
     }
     const student = { id: uid(), ...parsed.data, photo };
     addStudent(student);
-    setSession(student);
+    const session: AuthSession = {
+      role: "student",
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      email: student.email,
+      regNo: student.regNo,
+      department: student.department,
+      year: student.year,
+      section: student.section,
+      password: student.password,
+    };
+    setSession(session);
     toast.success("Registration successful", { description: "Welcome to PySecure." });
     router.navigate({ to: "/dashboard" });
   }

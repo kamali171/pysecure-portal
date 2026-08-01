@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, PageTitle } from "@/components/app-shell";
@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import {
   generateHint,
   generateTestCases,
+  getSession,
   getTests,
   inferDifficulty,
   saveTest,
@@ -22,6 +23,12 @@ import { Sparkles, Plus, Trash2, BookOpen } from "lucide-react";
 
 export const Route = createFileRoute("/faculty")({
   ssr: false,
+  beforeLoad: () => {
+    const session = getSession();
+    if (!session || session.role !== "faculty") {
+      throw redirect({ to: "/faculty/login" });
+    }
+  },
   head: () => ({
     meta: [
       { title: "Faculty Panel — Create Python Tests | PySecure" },
@@ -38,6 +45,7 @@ export const Route = createFileRoute("/faculty")({
 });
 
 function Faculty() {
+  const router = useRouter();
   const [topics, setTopics] = useState<string[]>([]);
   const [title, setTitle] = useState("Daily Python Assessment");
   const [qTitle, setQTitle] = useState("");
@@ -46,7 +54,14 @@ function Faculty() {
   const [draft, setDraft] = useState<Question[]>([]);
   const [tests, setTests] = useState<Test[]>([]);
 
-  useEffect(() => setTests(getTests()), []);
+  useEffect(() => {
+    const session = getSession();
+    if (!session || session.role !== "faculty") {
+      router.navigate({ to: "/faculty/login" });
+      return;
+    }
+    setTests(getTests());
+  }, [router]);
 
   const toggle = (t: string) =>
     setTopics((s) => (s.includes(t) ? s.filter((x) => x !== t) : [...s, t]));

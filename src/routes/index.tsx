@@ -1,12 +1,7 @@
-import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
-import { toast } from "sonner";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Logo } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { login, setSession } from "@/lib/pysecure";
-import { Camera, Cpu, Gauge, LockKeyhole, ScanFace, Sparkles } from "lucide-react";
+import { Camera, Cpu, Gauge, ScanFace, Sparkles, Users, GraduationCap, ShieldCheck } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -35,38 +30,32 @@ const FEATURES = [
 ];
 
 function Landing() {
-  const router = useRouter();
-  const [id, setId] = useState("");
-  const [pw, setPw] = useState("");
-
-  function submit(e: React.FormEvent) {
-    e.preventDefault();
-    const student = login(id, pw);
-    if (!student) {
-      toast.error("Invalid credentials", { description: "Check your register number and password." });
-      return;
-    }
-    setSession(student);
-    toast.success(`Welcome back, ${student.firstName}`);
-    router.navigate({ to: "/dashboard" });
-  }
+  const roles = [
+    {
+      title: "Student",
+      description: "Access your dashboard, upcoming tests and performance insights.",
+      icon: GraduationCap,
+      to: "/student/login",
+    },
+    {
+      title: "Faculty",
+      description: "Create assessments, manage drafts and publish tests.",
+      icon: Users,
+      to: "/faculty/login",
+    },
+    {
+      title: "Admin",
+      description: "Monitor institution-wide assessment activity and integrity trends.",
+      icon: ShieldCheck,
+      to: "/admin/login",
+    },
+  ] as const;
 
   return (
     <div className="min-h-screen">
       <header className="mx-auto flex h-20 max-w-7xl items-center justify-between px-4">
         <Logo />
-        <div className="flex items-center gap-2">
-          <Link to="/faculty">
-            <Button variant="ghost" size="sm">
-              Faculty
-            </Button>
-          </Link>
-          <Link to="/admin">
-            <Button variant="ghost" size="sm">
-              Admin
-            </Button>
-          </Link>
-        </div>
+        <div className="text-sm text-muted-foreground">Choose your role</div>
       </header>
 
       <section className="mx-auto grid max-w-7xl items-center gap-12 px-4 py-10 lg:grid-cols-[1.15fr_1fr] lg:py-16">
@@ -94,35 +83,29 @@ function Landing() {
 
         <div className="glass rise rounded-3xl p-8">
           <div className="mb-6 flex items-center gap-2 text-primary">
-            <LockKeyhole className="size-5" />
-            <h2 className="text-xl font-bold">Student Login</h2>
+            <Sparkles className="size-5" />
+            <h2 className="text-xl font-bold">Choose a role</h2>
           </div>
-          <form onSubmit={submit} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="id">Register Number or Email</Label>
-              <Input
-                id="id"
-                value={id}
-                onChange={(e) => setId(e.target.value)}
-                placeholder="7376221CS101"
-                required
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="pw">Password</Label>
-              <Input
-                id="pw"
-                type="password"
-                value={pw}
-                onChange={(e) => setPw(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
-            </div>
-            <Button type="submit" className="h-11 w-full text-base font-semibold">
-              Sign in securely
-            </Button>
-          </form>
+          <div className="space-y-3">
+            {roles.map((role) => {
+              const Icon = role.icon;
+              return (
+                <Link key={role.title} to={role.to} className="block">
+                  <div className="rounded-2xl border border-border/70 bg-card/60 p-4 transition-colors hover:border-primary/40 hover:bg-accent/50">
+                    <div className="flex items-center gap-3">
+                      <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
+                        <Icon className="size-5" />
+                      </span>
+                      <div>
+                        <p className="font-semibold">{role.title}</p>
+                        <p className="text-sm text-muted-foreground">{role.description}</p>
+                      </div>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
           <p className="mt-5 text-center text-sm text-muted-foreground">
             New student?{" "}
             <Link to="/register" className="font-semibold text-primary hover:underline">

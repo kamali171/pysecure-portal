@@ -3,6 +3,8 @@
 
 export type Difficulty = "Easy" | "Medium" | "Hard";
 
+export type UserRole = "student" | "faculty" | "admin";
+
 export type Student = {
   id: string;
   firstName: string;
@@ -17,6 +19,19 @@ export type Student = {
   phone: string;
   password: string;
   photo?: string;
+};
+
+export type AuthSession = {
+  role: UserRole;
+  id: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  regNo?: string;
+  department?: string;
+  year?: string;
+  section?: string;
+  password?: string;
 };
 
 export type Question = {
@@ -236,6 +251,25 @@ export function addStudent(s: Student) {
   write(KEYS.students, [...getStudents(), s]);
 }
 
+const DEMO_ACCOUNTS: Record<Exclude<UserRole, "student">, AuthSession> = {
+  faculty: {
+    role: "faculty",
+    id: "faculty-demo",
+    firstName: "Faculty",
+    lastName: "User",
+    email: "faculty@kiot.ac.in",
+    password: "faculty123",
+  },
+  admin: {
+    role: "admin",
+    id: "admin-demo",
+    firstName: "Admin",
+    lastName: "User",
+    email: "admin@kiot.ac.in",
+    password: "admin123",
+  },
+};
+
 export function login(regOrEmail: string, password: string): Student | null {
   const key = regOrEmail.trim().toLowerCase();
   return (
@@ -246,12 +280,55 @@ export function login(regOrEmail: string, password: string): Student | null {
   );
 }
 
-export function setSession(s: Student | null) {
+export function loginAsRole(role: UserRole, regOrEmail: string, password: string): AuthSession | null {
+  if (role === "student") {
+    const student = login(regOrEmail, password);
+    if (!student) return null;
+    return {
+      role: "student",
+      id: student.id,
+      firstName: student.firstName,
+      lastName: student.lastName,
+      email: student.email,
+      regNo: student.regNo,
+      department: student.department,
+      year: student.year,
+      section: student.section,
+      password: student.password,
+    };
+  }
+
+  const account = DEMO_ACCOUNTS[role];
+  const normalized = regOrEmail.trim().toLowerCase();
+  if (
+    (normalized === account.email.toLowerCase() || normalized === account.firstName.toLowerCase()) &&
+    password === account.password
+  ) {
+    return account;
+  }
+
+  return null;
+}
+
+export function setSession(s: AuthSession | null) {
   if (!s) window.localStorage.removeItem(KEYS.session);
   else write(KEYS.session, s);
 }
-export function getSession(): Student | null {
-  return read<Student | null>(KEYS.session, null);
+export function getSession(): AuthSession | null {
+  const stored = read<Partial<AuthSession> | null>(KEYS.session, null);
+  if (!stored) return null;
+  return {
+    role: stored.role ?? "student",
+    id: stored.id ?? "",
+    firstName: stored.firstName ?? "User",
+    lastName: stored.lastName ?? "",
+    email: stored.email ?? "",
+    regNo: stored.regNo,
+    department: stored.department,
+    year: stored.year,
+    section: stored.section,
+    password: stored.password,
+  };
 }
 
 export function getResults(studentId?: string): Result[] {

@@ -21,14 +21,6 @@ export function Logo({ compact = false }: { compact?: boolean }) {
   );
 }
 
-const NAV = [
-  { to: "/dashboard", label: "Student" },
-  { to: "/faculty", label: "Faculty" },
-  { to: "/proctor", label: "AI Proctor" },
-  { to: "/results", label: "Analytics" },
-  { to: "/admin", label: "Admin" },
-] as const;
-
 export function AppShell({ children }: { children: ReactNode }) {
   const router = useRouter();
   const session = typeof window !== "undefined" ? getSession() : null;
@@ -38,18 +30,6 @@ export function AppShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 border-b border-border/60 bg-background/70 backdrop-blur-xl">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between gap-4 px-4">
           <Logo compact />
-          <nav className="hidden items-center gap-1 md:flex">
-            {NAV.map((n) => (
-              <Link
-                key={n.to}
-                to={n.to}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-                activeProps={{ className: "bg-accent text-accent-foreground" }}
-              >
-                {n.label}
-              </Link>
-            ))}
-          </nav>
           <div className="flex items-center gap-3">
             {session ? (
               <>
@@ -57,7 +37,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   <span className="block text-sm font-semibold">
                     {session.firstName} {session.lastName}
                   </span>
-                  <span className="block text-xs text-muted-foreground">{session.regNo}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {session.regNo ?? session.role}
+                  </span>
                 </span>
                 <button
                   onClick={() => {
@@ -75,7 +57,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 to="/"
                 className="rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground"
               >
-                Sign in
+                Choose role
               </Link>
             )}
           </div>
