@@ -33,6 +33,7 @@ export type AuthSession = {
   section?: string;
   password?: string;
 };
+export type TestCase = { input: string; output: string };
 
 export type Question = {
   id: string;
@@ -42,8 +43,15 @@ export type Question = {
   difficulty: Difficulty;
   hint: string;
   expectedOutput: string;
-  testCases: { input: string; output: string }[];
+  testCases: TestCase[];
   starter: string;
+  /* generated metadata */
+  sampleInput?: string;
+  sampleOutput?: string;
+  hiddenTestCases?: TestCase[];
+  constraints?: string[];
+  timeLimitMs?: number;
+  memoryLimitMb?: number;
 };
 
 export type Test = {
@@ -53,6 +61,7 @@ export type Test = {
   date: string;
   durationMin: number;
   questions: Question[];
+  status?: "draft" | "published";
 };
 
 export type Result = {
@@ -65,7 +74,33 @@ export type Result = {
   trustScore: number;
   violations: number;
   date: string;
+  reevaluatedAt?: string;
 };
+
+export type Submission = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  testId: string;
+  questionId: string;
+  code: string;
+  passed: boolean;
+  at: string;
+};
+
+export type EditHistoryEntry = {
+  id: string;
+  testId: string;
+  facultyName: string;
+  at: string;
+  oldQuestion: string;
+  newQuestion: string;
+  oldHiddenTests: string;
+  newHiddenTests: string;
+  reason: string;
+  reevaluatedStudents: number;
+};
+
 
 export type Violation = {
   id: string;
@@ -102,7 +137,11 @@ const KEYS = {
   violations: "pysecure.violations",
   session: "pysecure.session",
   notices: "pysecure.notices",
+  submissions: "pysecure.submissions",
+  history: "pysecure.editHistory",
+  draft: "pysecure.facultyDraft",
 };
+
 
 function read<T>(key: string, fallback: T): T {
   if (typeof window === "undefined") return fallback;
@@ -374,4 +413,174 @@ export function runPython(code: string, expected: string) {
     return { passed: false, output: "No output produced. Complete the implementation and run again." };
   if (!c.includes("print")) return { passed: false, output: "Your program produced no printed output." };
   return { passed: true, output: expected };
+}
+
+/* ---------------------- AI question generation (faculty) -------------------- */
+
+export function generateConstraints(prompt: string): string[] {
+  const p = prompt.toLowerCase();
+  const base = ["1 ≤ N ≤ 10^5", "Input is always valid", "Output must match exactly (no extra spaces)"];
+  if (p.includes("string") || p.includes("word")) return ["1 ≤ |S| ≤ 10^4", "S contains printable ASCII only", base[2]];
+  if (p.includes("list") || p.includes("array")) return ["1 ≤ len(arr) ≤ 10^5", "-10^9 ≤ arr[i] ≤ 10^9", base[2]];
+  if (p.includes("recursion") || p.includes("factorial")) return ["0 ≤ N ≤ 20", "Use recursion, no loops", base[2]];
+  return base;
+}
+
+export function generateHiddenTestCases(prompt: string): TestCase[] {
+  const visible = generateTestCases(prompt);
+  const p = prompt.toLowerCase();
+  if (p.includes("even")) return [{ input: "1", output: "" }, { input: "20", output: "2 4 6 8 10 12 14 16 18 20" }, { input: "2", output: "2" }];
+  if (p.includes("reverse")) return [{ input: "a", output: "a" }, { input: "level", output: "level" }, { input: "assessment", output: "tnemssessa" }];
+  if (p.includes("factorial")) return [{ input: "1", output: "1" }, { input: "10", output: "3628800" }, { input: "7", output: "5040" }];
+  if (p.includes("palindrome")) return [{ input: "a", output: "True" }, { input: "abba", output: "True" }, { input: "python", output: "False" }];
+  return [
+    ...visible.map((t) => ({ input: t.input, output: t.output })),
+    { input: "1", output: "1" },
+  ];
+}
+
+/** Builds the full question object from the three faculty-entered fields. */
+export function generateQuestion(
+  topic: string,
+  title: string,
+  prompt: string,
+  overrides: Partial<Question> = {},
+): Question {
+  const visible = generateTestCases(prompt);
+  const difficulty = inferDifficulty(prompt);
+  return {
+    id: uid(),
+    topic,
+    title: title.trim().slice(0, 120),
+    prompt: prompt.trim().slice(0, 2000),
+    difficulty,
+    hint: generateHint(topic, prompt),
+    expectedOutput: visible[0].output,
+    testCases: visible,
+    sampleInput: visible[0].input,
+    sampleOutput: visible[0].output,
+    hiddenTestCases: generateHiddenTestCases(prompt),
+    constraints: generateConstraints(prompt),
+    timeLimitMs: difficulty === "Hard" ? 3000 : difficulty === "Medium" ? 2000 : 1000,
+    memoryLimitMb: difficulty === "Hard" ? 256 : 128,
+    starter: "# Write your Python solution here\n",
+    ...overrides,
+  };
+}
+
+/** Re-runs generation for the evaluation fields while keeping faculty text. */
+export function regenerateQuestion(q: Question): Question {
+  return generateQuestion(q.topic, q.title, q.prompt, { id: q.id, starter: q.starter });
+}
+
+/* ------------------------ tests: drafts + publishing ----------------------- */
+
+export function updateTest(test: Test) {
+  const all = getTests();
+  const idx = all.findIndex((t) => t.id === test.id);
+  if (idx === -1) write(KEYS.tests, [test, ...all]);
+  else {
+    all[idx] = test;
+    write(KEYS.tests, all);
+  }
+}
+
+export function saveDraft(test: Test) {
+  write(KEYS.draft, { ...test, status: "draft" });
+}
+export function getDraft(): Test | null {
+  return read<Test | null>(KEYS.draft, null);
+}
+export function clearDraft() {
+  if (typeof window !== "undefined") window.localStorage.removeItem(KEYS.draft);
+}
+
+/* ------------------------------- submissions ------------------------------- */
+
+export function getSubmissions(testId?: string): Submission[] {
+  const all = read<Submission[]>(KEYS.submissions, []);
+  return testId ? all.filter((s) => s.testId === testId) : all;
+}
+export function saveSubmission(s: Submission) {
+  // Submissions are append-only — history is never deleted.
+  write(KEYS.submissions, [s, ...getSubmissions()]);
+}
+
+/* ------------------------------ edit history ------------------------------- */
+
+export function getEditHistory(testId?: string): EditHistoryEntry[] {
+  const all = read<EditHistoryEntry[]>(KEYS.history, []);
+  return testId ? all.filter((h) => h.testId === testId) : all;
+}
+export function addEditHistory(e: EditHistoryEntry) {
+  write(KEYS.history, [e, ...getEditHistory()]);
+}
+
+/* ------------------------------ re-evaluation ------------------------------ */
+
+/**
+ * Re-judges every stored submission of a test against the updated question set
+ * and lifts marks / results / leaderboard when old code now passes.
+ * Submissions themselves are never mutated or deleted — a new judged copy is
+ * appended so the original attempt stays in the audit trail.
+ */
+export function reevaluateTest(test: Test): { students: number; upgraded: number } {
+  const subs = getSubmissions(test.id);
+  const byStudent = new Map<string, Submission[]>();
+  for (const s of subs) {
+    // keep only the latest submission per question per student for scoring
+    const list = byStudent.get(s.studentId) ?? [];
+    if (!list.some((x) => x.questionId === s.questionId)) list.push(s);
+    byStudent.set(s.studentId, list);
+  }
+
+  const results = getResults();
+  let upgraded = 0;
+
+  for (const [studentId, list] of byStudent) {
+    let score = 0;
+    for (const sub of list) {
+      const q = test.questions.find((x) => x.id === sub.questionId);
+      if (!q) continue;
+      const cases = [...(q.hiddenTestCases ?? []), ...q.testCases];
+      const verdict = cases.every((c) => runPython(sub.code, c.output).passed);
+      if (verdict) score += 1;
+      if (verdict && !sub.passed) {
+        upgraded += 1;
+        saveSubmission({ ...sub, id: uid(), passed: true, at: new Date().toISOString() });
+      }
+    }
+    const idx = results.findIndex((r) => r.studentId === studentId && r.testId === test.id);
+    if (idx !== -1 && score > results[idx].score) {
+      results[idx] = {
+        ...results[idx],
+        score,
+        total: test.questions.length,
+        reevaluatedAt: new Date().toISOString(),
+      };
+    }
+  }
+
+  write(KEYS.results, results);
+  return { students: byStudent.size, upgraded };
+}
+
+/** Leaderboard derived from results — always reflects re-evaluated marks. */
+export function getLeaderboard(testId: string) {
+  const students = getStudents();
+  return getResults()
+    .filter((r) => r.testId === testId)
+    .map((r) => {
+      const s = students.find((x) => x.id === r.studentId);
+      return {
+        studentId: r.studentId,
+        name: s ? `${s.firstName} ${s.lastName}` : "Student",
+        regNo: s?.regNo ?? "—",
+        score: r.score,
+        total: r.total,
+        trustScore: r.trustScore,
+        reevaluatedAt: r.reevaluatedAt,
+      };
+    })
+    .sort((a, b) => b.score - a.score || b.trustScore - a.trustScore);
 }
