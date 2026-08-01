@@ -19,6 +19,8 @@ export type Student = {
   photo?: string;
 };
 
+export type TestCase = { input: string; output: string };
+
 export type Question = {
   id: string;
   topic: string;
@@ -27,8 +29,15 @@ export type Question = {
   difficulty: Difficulty;
   hint: string;
   expectedOutput: string;
-  testCases: { input: string; output: string }[];
+  testCases: TestCase[];
   starter: string;
+  /* generated metadata */
+  sampleInput?: string;
+  sampleOutput?: string;
+  hiddenTestCases?: TestCase[];
+  constraints?: string[];
+  timeLimitMs?: number;
+  memoryLimitMb?: number;
 };
 
 export type Test = {
@@ -38,6 +47,7 @@ export type Test = {
   date: string;
   durationMin: number;
   questions: Question[];
+  status?: "draft" | "published";
 };
 
 export type Result = {
@@ -50,7 +60,33 @@ export type Result = {
   trustScore: number;
   violations: number;
   date: string;
+  reevaluatedAt?: string;
 };
+
+export type Submission = {
+  id: string;
+  studentId: string;
+  studentName: string;
+  testId: string;
+  questionId: string;
+  code: string;
+  passed: boolean;
+  at: string;
+};
+
+export type EditHistoryEntry = {
+  id: string;
+  testId: string;
+  facultyName: string;
+  at: string;
+  oldQuestion: string;
+  newQuestion: string;
+  oldHiddenTests: string;
+  newHiddenTests: string;
+  reason: string;
+  reevaluatedStudents: number;
+};
+
 
 export type Violation = {
   id: string;
