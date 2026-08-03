@@ -912,9 +912,13 @@ function Faculty() {
                   </pre>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
+                  Input: {q.inputFormat || "—"} · Output: {q.outputFormat || "—"}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
                   Constraints: {(q.constraints ?? []).join(" · ")} · Time {q.timeLimitMs} ms · Memory{" "}
                   {q.memoryLimitMb} MB
                 </p>
+
               </li>
             ))}
           </ol>
