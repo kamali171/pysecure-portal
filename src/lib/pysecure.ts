@@ -95,6 +95,14 @@ export type Submission = {
   at: string;
 };
 
+export type MarkChange = {
+  studentId: string;
+  name: string;
+  before: number;
+  after: number;
+  total: number;
+};
+
 export type EditHistoryEntry = {
   id: string;
   testId: string;
@@ -106,7 +114,10 @@ export type EditHistoryEntry = {
   newHiddenTests: string;
   reason: string;
   reevaluatedStudents: number;
+  version?: number;
+  marksChanges?: MarkChange[];
 };
+
 
 
 export type Violation = {
