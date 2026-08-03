@@ -390,13 +390,16 @@ function Faculty() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="h-9 px-3 text-sm">
-                Total questions: {questions.length}
-                <span className="ml-1 text-muted-foreground">/ {MIN_QUESTIONS} min</span>
+                Questions: {questions.length}
+                <span className="ml-1 text-muted-foreground">/ {MAX_QUESTIONS}</span>
               </Badge>
               {publishedTest && (
-                <Badge className="h-9 px-3 text-sm">Editing published</Badge>
+                <Badge className="h-9 px-3 text-sm">
+                  Editing published · v{publishedTest.version ?? 1}
+                </Badge>
               )}
             </div>
+
           </div>
 
           <div>
