@@ -479,7 +479,8 @@ function Faculty() {
                       </span>
                       <div>
                         <p className="font-semibold">
-                          Q{i + 1}. {q.title}
+                          Question {i + 1}. {q.title}
+
                         </p>
                         <div className="mt-1.5 flex flex-wrap gap-2">
                           <Badge variant="secondary">{q.topic}</Badge>
