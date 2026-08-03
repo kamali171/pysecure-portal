@@ -77,9 +77,31 @@ export const Route = createFileRoute("/faculty")({
 });
 
 const MIN_QUESTIONS = 10;
+const MAX_QUESTIONS = 10;
+const DIFFICULTIES: Difficulty[] = ["Easy", "Medium", "Hard"];
 
 function summarizeCases(cases: { input: string; output: string }[] | undefined) {
   return (cases ?? []).map((c) => `${c.input || "∅"} → ${c.output || "∅"}`).join(" | ");
+}
+
+/** "input => output" per line, newlines inside a field written as \n */
+function casesToText(cases: TestCase[] | undefined) {
+  return (cases ?? [])
+    .map((c) => `${c.input.replace(/\n/g, "\\n")} => ${c.output.replace(/\n/g, "\\n")}`)
+    .join("\n");
+}
+function textToCases(text: string): TestCase[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [i, ...rest] = l.split("=>");
+      return {
+        input: (i ?? "").trim().replace(/\\n/g, "\n"),
+        output: rest.join("=>").trim().replace(/\\n/g, "\n"),
+      };
+    });
 }
 
 function Faculty() {
@@ -96,6 +118,9 @@ function Faculty() {
   const [qTitle, setQTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [qTopic, setQTopic] = useState("");
+  const [gen, setGen] = useState<Question | null>(null);
+  const [hiddenText, setHiddenText] = useState("");
+
 
   useEffect(() => {
     const session = getSession();
