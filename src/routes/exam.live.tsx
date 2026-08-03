@@ -14,7 +14,7 @@ import {
   VIOLATION_LIMIT,
   VIOLATION_TYPES,
   type Question,
-  type Student,
+  type AuthSession,
   type Test,
 } from "@/lib/pysecure";
 import {
@@ -57,7 +57,7 @@ function ExamLive() {
   const streamRef = useRef<MediaStream | null>(null);
   const submitted = useRef(false);
 
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] = useState<AuthSession | null>(null);
   const [test, setTest] = useState<Test | null>(null);
   const [idx, setIdx] = useState(0);
   const [code, setCode] = useState<Record<string, string>>({});

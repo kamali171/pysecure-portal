@@ -1,6 +1,4 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import { AppShell, PageTitle } from "@/components/app-shell";
@@ -10,8 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import {
-  generateHint,
-  generateTestCases,
   Dialog,
   DialogContent,
   DialogDescription,

@@ -10,7 +10,7 @@ import {
   getSession,
   NOTIFICATIONS,
   type Result,
-  type Student,
+  type AuthSession,
   type Test,
 } from "@/lib/pysecure";
 import {
@@ -49,7 +49,7 @@ export const Route = createFileRoute("/dashboard")({
 
 function Dashboard() {
   const router = useRouter();
-  const [student, setStudent] = useState<Student | null>(null);
+  const [student, setStudent] = useState<AuthSession | null>(null);
   const [results, setResults] = useState<Result[]>([]);
   const [test, setTest] = useState<Test | null>(null);
 
@@ -59,7 +59,7 @@ function Dashboard() {
       router.navigate({ to: "/student/login" });
       return;
     }
-    setStudent(s as Student);
+    setStudent(s);
     setResults(getResults(s.id));
     setTest(activeTest());
   }, [router]);
