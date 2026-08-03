@@ -618,22 +618,39 @@ function Faculty() {
               <ul className="space-y-3">
                 {history.map((h) => (
                   <li key={h.id} className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs">
-                    <p className="font-semibold">{h.facultyName}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold">{h.facultyName}</p>
+                      <Badge variant="outline">v{h.version ?? 1}</Badge>
+                    </div>
                     <p className="text-muted-foreground">{new Date(h.at).toLocaleString()}</p>
                     <p className="mt-1.5">
                       <span className="text-muted-foreground">Reason:</span> {h.reason}
                     </p>
                     <p className="mt-1 line-clamp-2 text-muted-foreground">
-                      Old: {h.oldQuestion || "—"}
+                      Before: {h.oldQuestion || "—"}
                     </p>
-                    <p className="line-clamp-2 text-muted-foreground">New: {h.newQuestion || "—"}</p>
+                    <p className="line-clamp-2 text-muted-foreground">After: {h.newQuestion || "—"}</p>
                     <p className="mt-1 line-clamp-2 text-muted-foreground">
-                      Hidden cases: {h.oldHiddenTests ? "changed" : "—"} → {h.newHiddenTests ? "updated" : "—"}
+                      Hidden cases before: {h.oldHiddenTests || "—"}
                     </p>
+                    <p className="line-clamp-2 text-muted-foreground">
+                      Hidden cases after: {h.newHiddenTests || "—"}
+                    </p>
+                    {(h.marksChanges?.length ?? 0) > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {h.marksChanges!.map((m) => (
+                          <li key={m.studentId} className="text-muted-foreground">
+                            {m.name}: {m.before} → <span className="font-semibold text-foreground">{m.after}</span>{" "}
+                            / {m.total}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <Badge variant="secondary" className="mt-2">
                       {h.reevaluatedStudents} students re-evaluated
                     </Badge>
                   </li>
+
                 ))}
               </ul>
             )}
