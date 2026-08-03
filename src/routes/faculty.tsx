@@ -660,12 +660,13 @@ function Faculty() {
 
       {/* ------------------------------ builder ------------------------------ */}
       <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Question" : "Add Question"}</DialogTitle>
             <DialogDescription>
-              Enter the title, problem statement and topic. Difficulty, samples, hidden test cases,
-              expected output, constraints, limits and the hint are generated for you.
+              Enter the title and topic, then click Generate — the problem statement, samples, hidden
+              test cases, constraints, hint, formula and complexity are produced for you and stay
+              editable.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -675,19 +676,8 @@ function Faculty() {
                 id="qt"
                 value={qTitle}
                 onChange={(e) => setQTitle(e.target.value)}
-                placeholder="Find the largest element in a list"
+                placeholder="Sum of First N Natural Numbers"
                 maxLength={120}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="qp">Problem Statement</Label>
-              <Textarea
-                id="qp"
-                rows={5}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the task, input format and output format..."
-                maxLength={2000}
               />
             </div>
             <div className="space-y-2">
@@ -709,15 +699,186 @@ function Faculty() {
                 ))}
               </div>
             </div>
+            <Button type="button" variant="outline" onClick={runGeneration} className="gap-2">
+              <Sparkles className="size-4" /> Generate with AI
+            </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="qp">Problem Statement</Label>
+              <Textarea
+                id="qp"
+                rows={5}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Generated automatically — editable"
+                maxLength={2000}
+              />
+            </div>
+
+            {gen && (
+              <div className="space-y-4 rounded-2xl border border-border/70 bg-card/50 p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Difficulty</Label>
+                    <div className="flex gap-2">
+                      {DIFFICULTIES.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => patchGen({ difficulty: d })}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            gen.difficulty === d
+                              ? "border-transparent bg-primary text-primary-foreground"
+                              : "border-border bg-background/60 hover:bg-accent"
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="tl">Time Limit (ms)</Label>
+                      <Input
+                        id="tl"
+                        type="number"
+                        value={gen.timeLimitMs ?? 1000}
+                        onChange={(e) => patchGen({ timeLimitMs: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ml">Memory (MB)</Label>
+                      <Input
+                        id="ml"
+                        type="number"
+                        value={gen.memoryLimitMb ?? 128}
+                        onChange={(e) => patchGen({ memoryLimitMb: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="if">Input Format</Label>
+                    <Textarea
+                      id="if"
+                      rows={2}
+                      value={gen.inputFormat ?? ""}
+                      onChange={(e) => patchGen({ inputFormat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="of">Output Format</Label>
+                    <Textarea
+                      id="of"
+                      rows={2}
+                      value={gen.outputFormat ?? ""}
+                      onChange={(e) => patchGen({ outputFormat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="si">Sample Input</Label>
+                    <Textarea
+                      id="si"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.sampleInput ?? ""}
+                      onChange={(e) => patchGen({ sampleInput: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="so">Sample Output</Label>
+                    <Textarea
+                      id="so"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.sampleOutput ?? ""}
+                      onChange={(e) =>
+                        patchGen({ sampleOutput: e.target.value, expectedOutput: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eo">Expected Output</Label>
+                    <Textarea
+                      id="eo"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.expectedOutput}
+                      onChange={(e) => patchGen({ expectedOutput: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fm">Formula / Logic</Label>
+                    <Input
+                      id="fm"
+                      value={gen.formula ?? ""}
+                      onChange={(e) => patchGen({ formula: e.target.value })}
+                      placeholder="n × (n + 1) / 2"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ht">Hidden Test Cases — one per line as `input =&gt; output`</Label>
+                  <Textarea
+                    id="ht"
+                    rows={4}
+                    className="font-mono"
+                    value={hiddenText}
+                    onChange={(e) => setHiddenText(e.target.value)}
+                    placeholder="5 => 15"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cn">Constraints — one per line</Label>
+                  <Textarea
+                    id="cn"
+                    rows={3}
+                    value={(gen.constraints ?? []).join("\n")}
+                    onChange={(e) =>
+                      patchGen({ constraints: e.target.value.split("\n").filter((l) => l.trim()) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hn">Hint</Label>
+                  <Textarea
+                    id="hn"
+                    rows={3}
+                    value={gen.hint}
+                    onChange={(e) => patchGen({ hint: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="tc">Time Complexity</Label>
+                    <Input
+                      id="tc"
+                      value={gen.timeComplexity ?? ""}
+                      onChange={(e) => patchGen({ timeComplexity: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sc">Space Complexity</Label>
+                    <Input
+                      id="sc"
+                      value={gen.spaceComplexity ?? ""}
+                      onChange={(e) => patchGen({ spaceComplexity: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBuilderOpen(false)}>
               Cancel
             </Button>
             <Button onClick={saveQuestion} className="gap-2">
-              <Sparkles className="size-4" /> {editId ? "Save & Regenerate" : "Generate & Add"}
+              <Save className="size-4" /> {editId ? "Save Question" : "Add Question"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
