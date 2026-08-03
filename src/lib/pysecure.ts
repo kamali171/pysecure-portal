@@ -811,7 +811,9 @@ export function addEditHistory(e: EditHistoryEntry) {
  * Submissions themselves are never mutated or deleted — a new judged copy is
  * appended so the original attempt stays in the audit trail.
  */
-export function reevaluateTest(test: Test): { students: number; upgraded: number } {
+export function reevaluateTest(
+  test: Test,
+): { students: number; upgraded: number; changes: MarkChange[] } {
   const subs = getSubmissions(test.id);
   const byStudent = new Map<string, Submission[]>();
   for (const s of subs) {
@@ -822,6 +824,8 @@ export function reevaluateTest(test: Test): { students: number; upgraded: number
   }
 
   const results = getResults();
+  const students = getStudents();
+  const changes: MarkChange[] = [];
   let upgraded = 0;
 
   for (const [studentId, list] of byStudent) {
@@ -839,6 +843,14 @@ export function reevaluateTest(test: Test): { students: number; upgraded: number
     }
     const idx = results.findIndex((r) => r.studentId === studentId && r.testId === test.id);
     if (idx !== -1 && score > results[idx].score) {
+      const stu = students.find((x) => x.id === studentId);
+      changes.push({
+        studentId,
+        name: stu ? `${stu.firstName} ${stu.lastName}` : list[0]?.studentName ?? "Student",
+        before: results[idx].score,
+        after: score,
+        total: test.questions.length,
+      });
       results[idx] = {
         ...results[idx],
         score,
@@ -849,8 +861,9 @@ export function reevaluateTest(test: Test): { students: number; upgraded: number
   }
 
   write(KEYS.results, results);
-  return { students: byStudent.size, upgraded };
+  return { students: byStudent.size, upgraded, changes };
 }
+
 
 /** Leaderboard derived from results — always reflects re-evaluated marks. */
 export function getLeaderboard(testId: string) {
