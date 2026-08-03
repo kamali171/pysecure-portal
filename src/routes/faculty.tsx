@@ -423,9 +423,14 @@ function Faculty() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => openBuilder()} className="gap-2">
+            <Button
+              onClick={() => openBuilder()}
+              className="gap-2"
+              disabled={questions.length >= MAX_QUESTIONS}
+            >
               <Plus className="size-4" /> Add Question
             </Button>
+
             <Button variant="outline" onClick={handleSaveDraft} className="gap-2">
               <Save className="size-4" /> Save Draft
             </Button>
