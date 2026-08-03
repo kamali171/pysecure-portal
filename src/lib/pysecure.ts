@@ -435,50 +435,296 @@ export function runPython(code: string, expected: string) {
 
 /* ---------------------- AI question generation (faculty) -------------------- */
 
-export function generateConstraints(prompt: string): string[] {
-  const p = prompt.toLowerCase();
+export type QuestionBlueprint = {
+  keys: string[];
+  statement: string;
+  inputFormat: string;
+  outputFormat: string;
+  samples: TestCase[];
+  hidden: TestCase[];
+  hint: string;
+  formula?: string;
+  time: string;
+  space: string;
+  difficulty: Difficulty;
+  constraints: string[];
+};
+
+/** Question knowledge base — matched against the faculty title + topic. */
+const BLUEPRINTS: QuestionBlueprint[] = [
+  {
+    keys: ["sum of first n", "first n natural", "natural numbers"],
+    statement:
+      "Read an integer N and print the sum of the first N natural numbers (1 + 2 + ... + N).",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "A single line containing the sum.",
+    samples: [{ input: "5", output: "15" }],
+    hidden: [
+      { input: "1", output: "1" },
+      { input: "10", output: "55" },
+      { input: "100", output: "5050" },
+    ],
+    hint: "Use the direct arithmetic-series formula instead of a loop.",
+    formula: "n × (n + 1) / 2",
+    time: "O(1)",
+    space: "O(1)",
+    difficulty: "Easy",
+    constraints: ["1 ≤ N ≤ 10^6", "Output must match exactly (no extra spaces)"],
+  },
+  {
+    keys: ["add two numbers", "sum of two numbers", "addition of two"],
+    statement:
+      "Read two integers A and B (one per line) and print their sum.",
+    inputFormat: "Two lines, each containing one integer.",
+    outputFormat: "A single line containing A + B.",
+    samples: [{ input: "3\n4", output: "7" }],
+    hidden: [
+      { input: "0\n0", output: "0" },
+      { input: "-5\n9", output: "4" },
+      { input: "1000\n2500", output: "3500" },
+    ],
+    hint: "Use the + operator on the two integer inputs.",
+    time: "O(1)",
+    space: "O(1)",
+    difficulty: "Easy",
+    constraints: ["-10^9 ≤ A, B ≤ 10^9", "Output must match exactly (no extra spaces)"],
+  },
+  {
+    keys: ["even"],
+    statement:
+      "Read an integer N and print all even numbers from 1 to N separated by a single space on one line.",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "Space-separated even numbers on one line.",
+    samples: [{ input: "10", output: "2 4 6 8 10" }],
+    hidden: [
+      { input: "1", output: "" },
+      { input: "2", output: "2" },
+      { input: "20", output: "2 4 6 8 10 12 14 16 18 20" },
+    ],
+    hint: "Loop with step 2 from 2, or test each number with n % 2 == 0.",
+    formula: "count of evens = N // 2",
+    time: "O(N)",
+    space: "O(1)",
+    difficulty: "Easy",
+    constraints: ["1 ≤ N ≤ 10^4", "Output must match exactly (no extra spaces)"],
+  },
+  {
+    keys: ["factorial"],
+    statement:
+      "Read an integer N and print N! (the factorial of N). Handle N = 0 correctly.",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "A single line containing N!.",
+    samples: [{ input: "5", output: "120" }],
+    hidden: [
+      { input: "0", output: "1" },
+      { input: "1", output: "1" },
+      { input: "10", output: "3628800" },
+    ],
+    hint: "Define the base case factorial(0) = 1, then multiply n by factorial(n - 1).",
+    formula: "n! = n × (n − 1)!",
+    time: "O(N)",
+    space: "O(N) for the recursion stack",
+    difficulty: "Medium",
+    constraints: ["0 ≤ N ≤ 20", "Use recursion", "Output must match exactly"],
+  },
+  {
+    keys: ["fibonacci"],
+    statement:
+      "Read an integer N and print the Nth Fibonacci number, where F(0) = 0 and F(1) = 1.",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "A single line containing F(N).",
+    samples: [{ input: "7", output: "13" }],
+    hidden: [
+      { input: "0", output: "0" },
+      { input: "1", output: "1" },
+      { input: "20", output: "6765" },
+    ],
+    hint: "Keep two running values and shift them forward on each iteration.",
+    formula: "F(n) = F(n − 1) + F(n − 2)",
+    time: "O(N)",
+    space: "O(1)",
+    difficulty: "Medium",
+    constraints: ["0 ≤ N ≤ 40", "Output must match exactly"],
+  },
+  {
+    keys: ["palindrome"],
+    statement:
+      "Read a string and print True if it is a palindrome, otherwise print False.",
+    inputFormat: "A single line containing the string S.",
+    outputFormat: "True or False.",
+    samples: [{ input: "madam", output: "True" }],
+    hidden: [
+      { input: "a", output: "True" },
+      { input: "abba", output: "True" },
+      { input: "python", output: "False" },
+    ],
+    hint: "Compare the string with its reverse — s == s[::-1].",
+    time: "O(|S|)",
+    space: "O(|S|)",
+    difficulty: "Easy",
+    constraints: ["1 ≤ |S| ≤ 10^4", "S contains printable ASCII only"],
+  },
+  {
+    keys: ["reverse"],
+    statement:
+      "Read a string and print it reversed without using any built-in reverse function.",
+    inputFormat: "A single line containing the string S.",
+    outputFormat: "The reversed string on one line.",
+    samples: [{ input: "python", output: "nohtyp" }],
+    hidden: [
+      { input: "a", output: "a" },
+      { input: "level", output: "level" },
+      { input: "assessment", output: "tnemssessa" },
+    ],
+    hint: "Iterate from the last index down to 0 and append each character to a list, then ''.join() it.",
+    time: "O(|S|)",
+    space: "O(|S|)",
+    difficulty: "Easy",
+    constraints: ["1 ≤ |S| ≤ 10^4", "No built-in reversed()/[::-1]"],
+  },
+  {
+    keys: ["prime"],
+    statement:
+      "Read an integer N and print True if N is a prime number, otherwise print False.",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "True or False.",
+    samples: [{ input: "7", output: "True" }],
+    hidden: [
+      { input: "1", output: "False" },
+      { input: "2", output: "True" },
+      { input: "9", output: "False" },
+    ],
+    hint: "Only test divisors up to the square root of N.",
+    formula: "check i from 2 to √n",
+    time: "O(√N)",
+    space: "O(1)",
+    difficulty: "Medium",
+    constraints: ["1 ≤ N ≤ 10^9", "Output must be exactly True or False"],
+  },
+  {
+    keys: ["largest", "maximum", "max element"],
+    statement:
+      "Read a space-separated list of integers and print the largest value.",
+    inputFormat: "A single line of space-separated integers.",
+    outputFormat: "A single line containing the maximum value.",
+    samples: [{ input: "3 9 2 7", output: "9" }],
+    hidden: [
+      { input: "5", output: "5" },
+      { input: "-4 -9 -1", output: "-1" },
+      { input: "10 10 2", output: "10" },
+    ],
+    hint: "Track a running maximum while scanning the list once.",
+    time: "O(n)",
+    space: "O(1)",
+    difficulty: "Easy",
+    constraints: ["1 ≤ len(arr) ≤ 10^5", "-10^9 ≤ arr[i] ≤ 10^9"],
+  },
+  {
+    keys: ["sum of digits", "digit sum", "digits"],
+    statement: "Read an integer and print the sum of its digits.",
+    inputFormat: "A single line containing the integer N.",
+    outputFormat: "A single line containing the digit sum.",
+    samples: [{ input: "12345", output: "15" }],
+    hidden: [
+      { input: "0", output: "0" },
+      { input: "9", output: "9" },
+      { input: "1001", output: "2" },
+    ],
+    hint: "Repeatedly take n % 10 and then n //= 10, or sum over str(n).",
+    formula: "sum(int(d) for d in str(n))",
+    time: "O(log N)",
+    space: "O(1)",
+    difficulty: "Easy",
+    constraints: ["0 ≤ N ≤ 10^18", "Output must match exactly"],
+  },
+  {
+    keys: ["frequency", "count character", "occurrence"],
+    statement:
+      "Read a word and print each unique character with its frequency, one pair per line in first-seen order.",
+    inputFormat: "A single line containing the word S.",
+    outputFormat: "One 'character count' pair per line.",
+    samples: [{ input: "aab", output: "a 2\nb 1" }],
+    hidden: [
+      { input: "a", output: "a 1" },
+      { input: "xyz", output: "x 1\ny 1\nz 1" },
+      { input: "aaa", output: "a 3" },
+    ],
+    hint: "Use a dictionary counter — d[c] = d.get(c, 0) + 1 avoids KeyError.",
+    time: "O(|S|)",
+    space: "O(k) unique characters",
+    difficulty: "Medium",
+    constraints: ["1 ≤ |S| ≤ 10^4", "Preserve first-seen order"],
+  },
+];
+
+function matchBlueprint(title: string, prompt: string): QuestionBlueprint | null {
+  const hay = `${title} ${prompt}`.toLowerCase();
+  return (
+    BLUEPRINTS.find((b) => b.keys.some((k) => hay.includes(k))) ?? null
+  );
+}
+
+export function generateConstraints(prompt: string, title = ""): string[] {
+  const bp = matchBlueprint(title, prompt);
+  if (bp) return bp.constraints;
+  const p = `${title} ${prompt}`.toLowerCase();
   const base = ["1 ≤ N ≤ 10^5", "Input is always valid", "Output must match exactly (no extra spaces)"];
   if (p.includes("string") || p.includes("word")) return ["1 ≤ |S| ≤ 10^4", "S contains printable ASCII only", base[2]];
   if (p.includes("list") || p.includes("array")) return ["1 ≤ len(arr) ≤ 10^5", "-10^9 ≤ arr[i] ≤ 10^9", base[2]];
-  if (p.includes("recursion") || p.includes("factorial")) return ["0 ≤ N ≤ 20", "Use recursion, no loops", base[2]];
+  if (p.includes("recursion")) return ["0 ≤ N ≤ 20", "Use recursion, no loops", base[2]];
   return base;
 }
 
-export function generateHiddenTestCases(prompt: string): TestCase[] {
+export function generateHiddenTestCases(prompt: string, title = ""): TestCase[] {
+  const bp = matchBlueprint(title, prompt);
+  if (bp) return bp.hidden;
   const visible = generateTestCases(prompt);
-  const p = prompt.toLowerCase();
-  if (p.includes("even")) return [{ input: "1", output: "" }, { input: "20", output: "2 4 6 8 10 12 14 16 18 20" }, { input: "2", output: "2" }];
-  if (p.includes("reverse")) return [{ input: "a", output: "a" }, { input: "level", output: "level" }, { input: "assessment", output: "tnemssessa" }];
-  if (p.includes("factorial")) return [{ input: "1", output: "1" }, { input: "10", output: "3628800" }, { input: "7", output: "5040" }];
-  if (p.includes("palindrome")) return [{ input: "a", output: "True" }, { input: "abba", output: "True" }, { input: "python", output: "False" }];
   return [
     ...visible.map((t) => ({ input: t.input, output: t.output })),
     { input: "1", output: "1" },
   ];
 }
 
-/** Builds the full question object from the three faculty-entered fields. */
+/** Generates the problem statement from just the title + topic. */
+export function generateStatement(topic: string, title: string): string {
+  const bp = matchBlueprint(title, "");
+  if (bp) return bp.statement;
+  return `${title.trim()} — using ${topic}, read the required input from standard input, apply the ${topic.toLowerCase()} logic described by the title, and print only the final result. Do not print any extra prompts or labels.`;
+}
+
+/** Builds the full question object from the faculty-entered fields. */
 export function generateQuestion(
   topic: string,
   title: string,
   prompt: string,
   overrides: Partial<Question> = {},
 ): Question {
-  const visible = generateTestCases(prompt);
-  const difficulty = inferDifficulty(prompt);
+  const statement = (prompt.trim() || generateStatement(topic, title)).slice(0, 2000);
+  const bp = matchBlueprint(title, statement);
+  const visible = bp ? bp.samples : generateTestCases(statement);
+  const difficulty = bp ? bp.difficulty : inferDifficulty(statement);
   return {
     id: uid(),
     topic,
     title: title.trim().slice(0, 120),
-    prompt: prompt.trim().slice(0, 2000),
+    prompt: statement,
     difficulty,
-    hint: generateHint(topic, prompt),
+    hint: bp
+      ? bp.formula
+        ? `${bp.hint}\nFormula: ${bp.formula}`
+        : bp.hint
+      : generateHint(topic, statement),
     expectedOutput: visible[0].output,
     testCases: visible,
     sampleInput: visible[0].input,
     sampleOutput: visible[0].output,
-    hiddenTestCases: generateHiddenTestCases(prompt),
-    constraints: generateConstraints(prompt),
+    hiddenTestCases: generateHiddenTestCases(statement, title),
+    constraints: generateConstraints(statement, title),
+    inputFormat: bp?.inputFormat ?? "Read the input values from standard input, one per line.",
+    outputFormat: bp?.outputFormat ?? "Print only the final result on a single line.",
+    formula: bp?.formula,
+    timeComplexity: bp?.time ?? (difficulty === "Hard" ? "O(n log n)" : "O(n)"),
+    spaceComplexity: bp?.space ?? "O(1)",
     timeLimitMs: difficulty === "Hard" ? 3000 : difficulty === "Medium" ? 2000 : 1000,
     memoryLimitMb: difficulty === "Hard" ? 256 : 128,
     starter: "# Write your Python solution here\n",
@@ -490,6 +736,29 @@ export function generateQuestion(
 export function regenerateQuestion(q: Question): Question {
   return generateQuestion(q.topic, q.title, q.prompt, { id: q.id, starter: q.starter });
 }
+
+/** Publishing gate — every question must be complete. */
+export function validateTestForPublish(test: Test): string[] {
+  const errors: string[] = [];
+  if (!test.title.trim()) errors.push("Test title is required");
+  if (test.questions.length === 0) errors.push("Add at least one question");
+  test.questions.forEach((q, i) => {
+    const n = `Q${i + 1}`;
+    if (!q.title.trim()) errors.push(`${n}: title missing`);
+    if (!q.prompt.trim()) errors.push(`${n}: problem statement missing`);
+    if (!q.topic) errors.push(`${n}: topic missing`);
+    if (!q.sampleInput && q.sampleInput !== "") errors.push(`${n}: sample input missing`);
+    if (!q.sampleOutput) errors.push(`${n}: sample output missing`);
+    if (!q.expectedOutput) errors.push(`${n}: expected output missing`);
+    if (!q.hiddenTestCases || q.hiddenTestCases.length === 0)
+      errors.push(`${n}: hidden test cases missing`);
+    if (!q.hint?.trim()) errors.push(`${n}: hint missing`);
+    if (!q.timeLimitMs) errors.push(`${n}: time limit missing`);
+    if (!q.memoryLimitMb) errors.push(`${n}: memory limit missing`);
+  });
+  return errors;
+}
+
 
 /* ------------------------ tests: drafts + publishing ----------------------- */
 
