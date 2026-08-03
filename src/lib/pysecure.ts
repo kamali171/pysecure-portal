@@ -297,9 +297,14 @@ export function getTests(): Test[] {
 export function saveTest(test: Test) {
   write(KEYS.tests, [test, ...getTests()]);
 }
-export function activeTest(): Test {
-  return getTests()[0];
+export function getPublishedTests(): Test[] {
+  return getTests().filter((t) => t.status !== "draft");
 }
+export function activeTest(): Test {
+  const all = getTests();
+  return all.find((t) => t.status === "published") ?? all[0];
+}
+
 
 export function getStudents(): Student[] {
   return read<Student[]>(KEYS.students, []);
