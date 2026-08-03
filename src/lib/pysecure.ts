@@ -52,6 +52,11 @@ export type Question = {
   constraints?: string[];
   timeLimitMs?: number;
   memoryLimitMb?: number;
+  inputFormat?: string;
+  outputFormat?: string;
+  formula?: string;
+  timeComplexity?: string;
+  spaceComplexity?: string;
 };
 
 export type Test = {
@@ -62,7 +67,9 @@ export type Test = {
   durationMin: number;
   questions: Question[];
   status?: "draft" | "published";
+  version?: number;
 };
+
 
 export type Result = {
   id: string;
