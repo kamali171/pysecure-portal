@@ -165,35 +165,79 @@ function Faculty() {
       setQTitle(q.title);
       setPrompt(q.prompt);
       setQTopic(q.topic);
+      setGen(q);
+      setHiddenText(casesToText(q.hiddenTestCases));
     } else {
+      if (questions.length >= MAX_QUESTIONS) {
+        toast.error(`A test can hold at most ${MAX_QUESTIONS} questions`);
+        return;
+      }
       setEditId(null);
       setQTitle("");
       setPrompt("");
       setQTopic(topics[0] ?? "");
+      setGen(null);
+      setHiddenText("");
     }
     setBuilderOpen(true);
   }
 
+  /** AI: fills statement + every generated field from title & topic. */
+  function runGeneration() {
+    if (!qTitle.trim()) return toast.error("Enter the question title first");
+    const topic = qTopic || topics[0];
+    if (!topic) return toast.error("Select a syllabus topic first");
+    const statement = prompt.trim() || generateStatement(topic, qTitle);
+    const q = generateQuestion(topic, qTitle, statement, {
+      id: editId ?? uid(),
+      starter: gen?.starter ?? "# Write your Python solution here\n",
+    });
+    setPrompt(q.prompt);
+    setGen(q);
+    setHiddenText(casesToText(q.hiddenTestCases));
+    toast.success("AI generated statement, samples, hidden cases, hint & complexity", {
+      description: `${q.difficulty} · ${topic}${q.formula ? ` · formula ${q.formula}` : ""}`,
+    });
+  }
+
+  const patchGen = (patch: Partial<Question>) =>
+    setGen((g) => (g ? { ...g, ...patch } : g));
+
   function saveQuestion() {
-    if (!qTitle.trim() || !prompt.trim()) return toast.error("Question title and problem statement required");
+    if (!qTitle.trim()) return toast.error("Question title required");
     const topic = qTopic || topics[0];
     if (!topic) return toast.error("Select a syllabus topic first");
     if (!topics.includes(topic)) setTopics((s) => [...s, topic]);
 
-    if (editId) {
-      const existing = questions.find((x) => x.id === editId)!;
-      const updated = generateQuestion(topic, qTitle, prompt, { id: editId, starter: existing.starter });
-      setQuestions((qs) => qs.map((x) => (x.id === editId ? updated : x)));
-      toast.success("Question updated & regenerated", { description: `${updated.difficulty} · ${topic}` });
-    } else {
-      const q = generateQuestion(topic, qTitle, prompt);
-      setQuestions((qs) => [...qs, q]);
-      toast.success("AI generated hint, cases, constraints & limits", {
-        description: `${q.difficulty} · ${topic}`,
+    const base =
+      gen ??
+      generateQuestion(topic, qTitle, prompt.trim() || generateStatement(topic, qTitle), {
+        id: editId ?? uid(),
       });
+
+    const hidden = textToCases(hiddenText);
+    if (hidden.length === 0) return toast.error("At least one hidden test case is required");
+
+    const finalQ: Question = {
+      ...base,
+      id: editId ?? base.id,
+      topic,
+      title: qTitle.trim(),
+      prompt: (prompt.trim() || base.prompt).slice(0, 2000),
+      hiddenTestCases: hidden,
+      testCases: [{ input: base.sampleInput ?? "", output: base.sampleOutput ?? base.expectedOutput }],
+    };
+
+    if (editId) {
+      setQuestions((qs) => qs.map((x) => (x.id === editId ? finalQ : x)));
+      toast.success("Question updated", { description: `${finalQ.difficulty} · ${topic}` });
+    } else {
+      setQuestions((qs) => (qs.length >= MAX_QUESTIONS ? qs : [...qs, finalQ]));
+      toast.success("Question added", { description: `${finalQ.difficulty} · ${topic}` });
     }
     setBuilderOpen(false);
   }
+
 
   const removeQuestion = (id: string) => setQuestions((qs) => qs.filter((x) => x.id !== id));
 
