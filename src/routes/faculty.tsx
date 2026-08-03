@@ -549,13 +549,29 @@ function Faculty() {
                         {summarizeCases(q.hiddenTestCases) || "—"}
                       </dd>
                     </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                      <dt className="mb-1 font-semibold">Input Format</dt>
+                      <dd className="text-muted-foreground">{q.inputFormat || "—"}</dd>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                      <dt className="mb-1 font-semibold">Output Format</dt>
+                      <dd className="text-muted-foreground">{q.outputFormat || "—"}</dd>
+                    </div>
                     <div className="rounded-xl border border-border/60 bg-background/50 p-3 sm:col-span-2">
                       <dt className="mb-1 font-semibold">Constraints</dt>
                       <dd className="text-muted-foreground">{(q.constraints ?? []).join(" · ")}</dd>
                     </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3 sm:col-span-2">
+                      <dt className="mb-1 font-semibold">Formula / Logic & Complexity</dt>
+                      <dd className="text-muted-foreground">
+                        {q.formula ? `Formula: ${q.formula} · ` : ""}Time {q.timeComplexity ?? "—"} ·
+                        Space {q.spaceComplexity ?? "—"}
+                      </dd>
+                    </div>
                   </dl>
 
-                  <p className="mt-3 text-xs text-muted-foreground">💡 {q.hint}</p>
+                  <p className="mt-3 whitespace-pre-line text-xs text-muted-foreground">💡 {q.hint}</p>
+
                 </article>
               ))}
             </div>
