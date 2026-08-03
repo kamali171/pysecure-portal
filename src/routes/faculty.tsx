@@ -19,6 +19,7 @@ import {
   addEditHistory,
   clearDraft,
   generateQuestion,
+  generateStatement,
   getDraft,
   getEditHistory,
   getSession,
@@ -30,10 +31,14 @@ import {
   TOPICS,
   uid,
   updateTest,
+  validateTestForPublish,
+  type Difficulty,
   type EditHistoryEntry,
   type Question,
   type Test,
+  type TestCase,
 } from "@/lib/pysecure";
+
 import {
   Sparkles,
   Plus,
@@ -72,9 +77,31 @@ export const Route = createFileRoute("/faculty")({
 });
 
 const MIN_QUESTIONS = 10;
+const MAX_QUESTIONS = 10;
+const DIFFICULTIES: Difficulty[] = ["Easy", "Medium", "Hard"];
 
 function summarizeCases(cases: { input: string; output: string }[] | undefined) {
   return (cases ?? []).map((c) => `${c.input || "∅"} → ${c.output || "∅"}`).join(" | ");
+}
+
+/** "input => output" per line, newlines inside a field written as \n */
+function casesToText(cases: TestCase[] | undefined) {
+  return (cases ?? [])
+    .map((c) => `${c.input.replace(/\n/g, "\\n")} => ${c.output.replace(/\n/g, "\\n")}`)
+    .join("\n");
+}
+function textToCases(text: string): TestCase[] {
+  return text
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => {
+      const [i, ...rest] = l.split("=>");
+      return {
+        input: (i ?? "").trim().replace(/\\n/g, "\n"),
+        output: rest.join("=>").trim().replace(/\\n/g, "\n"),
+      };
+    });
 }
 
 function Faculty() {
@@ -91,6 +118,9 @@ function Faculty() {
   const [qTitle, setQTitle] = useState("");
   const [prompt, setPrompt] = useState("");
   const [qTopic, setQTopic] = useState("");
+  const [gen, setGen] = useState<Question | null>(null);
+  const [hiddenText, setHiddenText] = useState("");
+
 
   useEffect(() => {
     const session = getSession();
@@ -135,35 +165,79 @@ function Faculty() {
       setQTitle(q.title);
       setPrompt(q.prompt);
       setQTopic(q.topic);
+      setGen(q);
+      setHiddenText(casesToText(q.hiddenTestCases));
     } else {
+      if (questions.length >= MAX_QUESTIONS) {
+        toast.error(`A test can hold at most ${MAX_QUESTIONS} questions`);
+        return;
+      }
       setEditId(null);
       setQTitle("");
       setPrompt("");
       setQTopic(topics[0] ?? "");
+      setGen(null);
+      setHiddenText("");
     }
     setBuilderOpen(true);
   }
 
+  /** AI: fills statement + every generated field from title & topic. */
+  function runGeneration() {
+    if (!qTitle.trim()) return toast.error("Enter the question title first");
+    const topic = qTopic || topics[0];
+    if (!topic) return toast.error("Select a syllabus topic first");
+    const statement = prompt.trim() || generateStatement(topic, qTitle);
+    const q = generateQuestion(topic, qTitle, statement, {
+      id: editId ?? uid(),
+      starter: gen?.starter ?? "# Write your Python solution here\n",
+    });
+    setPrompt(q.prompt);
+    setGen(q);
+    setHiddenText(casesToText(q.hiddenTestCases));
+    toast.success("AI generated statement, samples, hidden cases, hint & complexity", {
+      description: `${q.difficulty} · ${topic}${q.formula ? ` · formula ${q.formula}` : ""}`,
+    });
+  }
+
+  const patchGen = (patch: Partial<Question>) =>
+    setGen((g) => (g ? { ...g, ...patch } : g));
+
   function saveQuestion() {
-    if (!qTitle.trim() || !prompt.trim()) return toast.error("Question title and problem statement required");
+    if (!qTitle.trim()) return toast.error("Question title required");
     const topic = qTopic || topics[0];
     if (!topic) return toast.error("Select a syllabus topic first");
     if (!topics.includes(topic)) setTopics((s) => [...s, topic]);
 
-    if (editId) {
-      const existing = questions.find((x) => x.id === editId)!;
-      const updated = generateQuestion(topic, qTitle, prompt, { id: editId, starter: existing.starter });
-      setQuestions((qs) => qs.map((x) => (x.id === editId ? updated : x)));
-      toast.success("Question updated & regenerated", { description: `${updated.difficulty} · ${topic}` });
-    } else {
-      const q = generateQuestion(topic, qTitle, prompt);
-      setQuestions((qs) => [...qs, q]);
-      toast.success("AI generated hint, cases, constraints & limits", {
-        description: `${q.difficulty} · ${topic}`,
+    const base =
+      gen ??
+      generateQuestion(topic, qTitle, prompt.trim() || generateStatement(topic, qTitle), {
+        id: editId ?? uid(),
       });
+
+    const hidden = textToCases(hiddenText);
+    if (hidden.length === 0) return toast.error("At least one hidden test case is required");
+
+    const finalQ: Question = {
+      ...base,
+      id: editId ?? base.id,
+      topic,
+      title: qTitle.trim(),
+      prompt: (prompt.trim() || base.prompt).slice(0, 2000),
+      hiddenTestCases: hidden,
+      testCases: [{ input: base.sampleInput ?? "", output: base.sampleOutput ?? base.expectedOutput }],
+    };
+
+    if (editId) {
+      setQuestions((qs) => qs.map((x) => (x.id === editId ? finalQ : x)));
+      toast.success("Question updated", { description: `${finalQ.difficulty} · ${topic}` });
+    } else {
+      setQuestions((qs) => (qs.length >= MAX_QUESTIONS ? qs : [...qs, finalQ]));
+      toast.success("Question added", { description: `${finalQ.difficulty} · ${topic}` });
     }
     setBuilderOpen(false);
   }
+
 
   const removeQuestion = (id: string) => setQuestions((qs) => qs.filter((x) => x.id !== id));
 
@@ -213,10 +287,28 @@ function Faculty() {
     toast.success("Draft saved", { description: `${questions.length} questions stored locally` });
   }
 
+  function currentTestDraft(): Test {
+    return {
+      id: editingTestId ?? uid(),
+      title: title.trim() || "Daily Python Assessment",
+      topics: topics.length > 0 ? topics : [...new Set(questions.map((q) => q.topic))],
+      date: new Date().toISOString(),
+      durationMin: 60,
+      questions,
+      status: "published",
+      version: (publishedTest?.version ?? 0) + 1,
+    };
+  }
+
   function startPublish() {
     if (questions.length < MIN_QUESTIONS)
       return toast.error(`A test needs at least ${MIN_QUESTIONS} questions`, {
         description: `${questions.length}/${MIN_QUESTIONS} added so far`,
+      });
+    const errors = validateTestForPublish(currentTestDraft());
+    if (errors.length > 0)
+      return toast.error("Test is incomplete — publishing blocked", {
+        description: errors.slice(0, 4).join(" · "),
       });
     setReason("");
     setPublishOpen(true);
@@ -225,47 +317,44 @@ function Faculty() {
   function confirmPublish() {
     const session = getSession();
     const facultyName = session ? `${session.firstName} ${session.lastName}` : "Faculty";
+    const draft = currentTestDraft();
 
     if (publishedTest) {
       const before = publishedTest;
-      const updated: Test = { ...before, title: title.trim() || before.title, topics, questions, status: "published" };
+      const updated: Test = { ...before, ...draft, id: before.id, date: before.date };
       updateTest(updated);
-      const { students, upgraded } = reevaluateTest(updated);
+      const { students, upgraded, changes } = reevaluateTest(updated);
       addEditHistory({
         id: uid(),
         testId: updated.id,
         facultyName,
         at: new Date().toISOString(),
-        oldQuestion: before.questions.map((q) => q.title).join(", "),
-        newQuestion: questions.map((q) => q.title).join(", "),
+        version: updated.version,
+        oldQuestion: before.questions.map((q, i) => `Q${i + 1} ${q.title}`).join(", "),
+        newQuestion: questions.map((q, i) => `Q${i + 1} ${q.title}`).join(", "),
         oldHiddenTests: before.questions.map((q) => summarizeCases(q.hiddenTestCases)).join(" ‖ "),
         newHiddenTests: questions.map((q) => summarizeCases(q.hiddenTestCases)).join(" ‖ "),
         reason: reason.trim() || "Question / test-case correction",
         reevaluatedStudents: students,
+        marksChanges: changes,
       });
       setTests(getTests());
       setHistory(getEditHistory());
-      toast.success("Published test updated", {
-        description: `${students} student submissions re-evaluated · ${upgraded} answers upgraded`,
+      toast.success(`Published test updated — v${updated.version}`, {
+        description: `${students} submissions re-evaluated · ${upgraded} answers upgraded · ${changes.length} marks revised`,
       });
     } else {
-      const test: Test = {
-        id: uid(),
-        title: title.trim() || "Daily Python Assessment",
-        topics,
-        date: new Date().toISOString(),
-        durationMin: 60,
-        questions,
-        status: "published",
-      };
-      saveTest(test);
+      saveTest(draft);
       setTests(getTests());
-      setEditingTestId(test.id);
-      toast.success("Test published to all students");
+      setEditingTestId(draft.id);
+      toast.success("Test published — now live on every student dashboard", {
+        description: `${draft.questions.length} questions · ${draft.durationMin} min`,
+      });
     }
     clearDraft();
     setPublishOpen(false);
   }
+
 
   function loadForEditing(t: Test) {
     setEditingTestId(t.id);
@@ -301,13 +390,16 @@ function Faculty() {
             </div>
             <div className="flex items-center gap-2">
               <Badge variant="secondary" className="h-9 px-3 text-sm">
-                Total questions: {questions.length}
-                <span className="ml-1 text-muted-foreground">/ {MIN_QUESTIONS} min</span>
+                Questions: {questions.length}
+                <span className="ml-1 text-muted-foreground">/ {MAX_QUESTIONS}</span>
               </Badge>
               {publishedTest && (
-                <Badge className="h-9 px-3 text-sm">Editing published</Badge>
+                <Badge className="h-9 px-3 text-sm">
+                  Editing published · v{publishedTest.version ?? 1}
+                </Badge>
               )}
             </div>
+
           </div>
 
           <div>
@@ -331,9 +423,14 @@ function Faculty() {
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            <Button onClick={() => openBuilder()} className="gap-2">
+            <Button
+              onClick={() => openBuilder()}
+              className="gap-2"
+              disabled={questions.length >= MAX_QUESTIONS}
+            >
               <Plus className="size-4" /> Add Question
             </Button>
+
             <Button variant="outline" onClick={handleSaveDraft} className="gap-2">
               <Save className="size-4" /> Save Draft
             </Button>
@@ -382,7 +479,8 @@ function Faculty() {
                       </span>
                       <div>
                         <p className="font-semibold">
-                          Q{i + 1}. {q.title}
+                          Question {i + 1}. {q.title}
+
                         </p>
                         <div className="mt-1.5 flex flex-wrap gap-2">
                           <Badge variant="secondary">{q.topic}</Badge>
@@ -451,13 +549,29 @@ function Faculty() {
                         {summarizeCases(q.hiddenTestCases) || "—"}
                       </dd>
                     </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                      <dt className="mb-1 font-semibold">Input Format</dt>
+                      <dd className="text-muted-foreground">{q.inputFormat || "—"}</dd>
+                    </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3">
+                      <dt className="mb-1 font-semibold">Output Format</dt>
+                      <dd className="text-muted-foreground">{q.outputFormat || "—"}</dd>
+                    </div>
                     <div className="rounded-xl border border-border/60 bg-background/50 p-3 sm:col-span-2">
                       <dt className="mb-1 font-semibold">Constraints</dt>
                       <dd className="text-muted-foreground">{(q.constraints ?? []).join(" · ")}</dd>
                     </div>
+                    <div className="rounded-xl border border-border/60 bg-background/50 p-3 sm:col-span-2">
+                      <dt className="mb-1 font-semibold">Formula / Logic & Complexity</dt>
+                      <dd className="text-muted-foreground">
+                        {q.formula ? `Formula: ${q.formula} · ` : ""}Time {q.timeComplexity ?? "—"} ·
+                        Space {q.spaceComplexity ?? "—"}
+                      </dd>
+                    </div>
                   </dl>
 
-                  <p className="mt-3 text-xs text-muted-foreground">💡 {q.hint}</p>
+                  <p className="mt-3 whitespace-pre-line text-xs text-muted-foreground">💡 {q.hint}</p>
+
                 </article>
               ))}
             </div>
@@ -504,22 +618,39 @@ function Faculty() {
               <ul className="space-y-3">
                 {history.map((h) => (
                   <li key={h.id} className="rounded-xl border border-border/70 bg-card/60 p-3 text-xs">
-                    <p className="font-semibold">{h.facultyName}</p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="font-semibold">{h.facultyName}</p>
+                      <Badge variant="outline">v{h.version ?? 1}</Badge>
+                    </div>
                     <p className="text-muted-foreground">{new Date(h.at).toLocaleString()}</p>
                     <p className="mt-1.5">
                       <span className="text-muted-foreground">Reason:</span> {h.reason}
                     </p>
                     <p className="mt-1 line-clamp-2 text-muted-foreground">
-                      Old: {h.oldQuestion || "—"}
+                      Before: {h.oldQuestion || "—"}
                     </p>
-                    <p className="line-clamp-2 text-muted-foreground">New: {h.newQuestion || "—"}</p>
+                    <p className="line-clamp-2 text-muted-foreground">After: {h.newQuestion || "—"}</p>
                     <p className="mt-1 line-clamp-2 text-muted-foreground">
-                      Hidden cases: {h.oldHiddenTests ? "changed" : "—"} → {h.newHiddenTests ? "updated" : "—"}
+                      Hidden cases before: {h.oldHiddenTests || "—"}
                     </p>
+                    <p className="line-clamp-2 text-muted-foreground">
+                      Hidden cases after: {h.newHiddenTests || "—"}
+                    </p>
+                    {(h.marksChanges?.length ?? 0) > 0 && (
+                      <ul className="mt-2 space-y-1">
+                        {h.marksChanges!.map((m) => (
+                          <li key={m.studentId} className="text-muted-foreground">
+                            {m.name}: {m.before} → <span className="font-semibold text-foreground">{m.after}</span>{" "}
+                            / {m.total}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
                     <Badge variant="secondary" className="mt-2">
                       {h.reevaluatedStudents} students re-evaluated
                     </Badge>
                   </li>
+
                 ))}
               </ul>
             )}
@@ -529,12 +660,13 @@ function Faculty() {
 
       {/* ------------------------------ builder ------------------------------ */}
       <Dialog open={builderOpen} onOpenChange={setBuilderOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-2xl">
           <DialogHeader>
             <DialogTitle>{editId ? "Edit Question" : "Add Question"}</DialogTitle>
             <DialogDescription>
-              Enter the title, problem statement and topic. Difficulty, samples, hidden test cases,
-              expected output, constraints, limits and the hint are generated for you.
+              Enter the title and topic, then click Generate — the problem statement, samples, hidden
+              test cases, constraints, hint, formula and complexity are produced for you and stay
+              editable.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
@@ -544,19 +676,8 @@ function Faculty() {
                 id="qt"
                 value={qTitle}
                 onChange={(e) => setQTitle(e.target.value)}
-                placeholder="Find the largest element in a list"
+                placeholder="Sum of First N Natural Numbers"
                 maxLength={120}
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="qp">Problem Statement</Label>
-              <Textarea
-                id="qp"
-                rows={5}
-                value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
-                placeholder="Describe the task, input format and output format..."
-                maxLength={2000}
               />
             </div>
             <div className="space-y-2">
@@ -578,15 +699,186 @@ function Faculty() {
                 ))}
               </div>
             </div>
+            <Button type="button" variant="outline" onClick={runGeneration} className="gap-2">
+              <Sparkles className="size-4" /> Generate with AI
+            </Button>
+
+            <div className="space-y-2">
+              <Label htmlFor="qp">Problem Statement</Label>
+              <Textarea
+                id="qp"
+                rows={5}
+                value={prompt}
+                onChange={(e) => setPrompt(e.target.value)}
+                placeholder="Generated automatically — editable"
+                maxLength={2000}
+              />
+            </div>
+
+            {gen && (
+              <div className="space-y-4 rounded-2xl border border-border/70 bg-card/50 p-4">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label>Difficulty</Label>
+                    <div className="flex gap-2">
+                      {DIFFICULTIES.map((d) => (
+                        <button
+                          key={d}
+                          type="button"
+                          onClick={() => patchGen({ difficulty: d })}
+                          className={`rounded-full border px-3 py-1.5 text-xs font-medium transition-colors ${
+                            gen.difficulty === d
+                              ? "border-transparent bg-primary text-primary-foreground"
+                              : "border-border bg-background/60 hover:bg-accent"
+                          }`}
+                        >
+                          {d}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-2">
+                      <Label htmlFor="tl">Time Limit (ms)</Label>
+                      <Input
+                        id="tl"
+                        type="number"
+                        value={gen.timeLimitMs ?? 1000}
+                        onChange={(e) => patchGen({ timeLimitMs: Number(e.target.value) })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="ml">Memory (MB)</Label>
+                      <Input
+                        id="ml"
+                        type="number"
+                        value={gen.memoryLimitMb ?? 128}
+                        onChange={(e) => patchGen({ memoryLimitMb: Number(e.target.value) })}
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="if">Input Format</Label>
+                    <Textarea
+                      id="if"
+                      rows={2}
+                      value={gen.inputFormat ?? ""}
+                      onChange={(e) => patchGen({ inputFormat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="of">Output Format</Label>
+                    <Textarea
+                      id="of"
+                      rows={2}
+                      value={gen.outputFormat ?? ""}
+                      onChange={(e) => patchGen({ outputFormat: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="si">Sample Input</Label>
+                    <Textarea
+                      id="si"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.sampleInput ?? ""}
+                      onChange={(e) => patchGen({ sampleInput: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="so">Sample Output</Label>
+                    <Textarea
+                      id="so"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.sampleOutput ?? ""}
+                      onChange={(e) =>
+                        patchGen({ sampleOutput: e.target.value, expectedOutput: e.target.value })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="eo">Expected Output</Label>
+                    <Textarea
+                      id="eo"
+                      rows={2}
+                      className="font-mono"
+                      value={gen.expectedOutput}
+                      onChange={(e) => patchGen({ expectedOutput: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="fm">Formula / Logic</Label>
+                    <Input
+                      id="fm"
+                      value={gen.formula ?? ""}
+                      onChange={(e) => patchGen({ formula: e.target.value })}
+                      placeholder="n × (n + 1) / 2"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="ht">Hidden Test Cases — one per line as `input =&gt; output`</Label>
+                  <Textarea
+                    id="ht"
+                    rows={4}
+                    className="font-mono"
+                    value={hiddenText}
+                    onChange={(e) => setHiddenText(e.target.value)}
+                    placeholder="5 => 15"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="cn">Constraints — one per line</Label>
+                  <Textarea
+                    id="cn"
+                    rows={3}
+                    value={(gen.constraints ?? []).join("\n")}
+                    onChange={(e) =>
+                      patchGen({ constraints: e.target.value.split("\n").filter((l) => l.trim()) })
+                    }
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="hn">Hint</Label>
+                  <Textarea
+                    id="hn"
+                    rows={3}
+                    value={gen.hint}
+                    onChange={(e) => patchGen({ hint: e.target.value })}
+                  />
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="tc">Time Complexity</Label>
+                    <Input
+                      id="tc"
+                      value={gen.timeComplexity ?? ""}
+                      onChange={(e) => patchGen({ timeComplexity: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="sc">Space Complexity</Label>
+                    <Input
+                      id="sc"
+                      value={gen.spaceComplexity ?? ""}
+                      onChange={(e) => patchGen({ spaceComplexity: e.target.value })}
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setBuilderOpen(false)}>
               Cancel
             </Button>
             <Button onClick={saveQuestion} className="gap-2">
-              <Sparkles className="size-4" /> {editId ? "Save & Regenerate" : "Generate & Add"}
+              <Save className="size-4" /> {editId ? "Save Question" : "Add Question"}
             </Button>
           </DialogFooter>
+
         </DialogContent>
       </Dialog>
 
@@ -620,9 +912,13 @@ function Faculty() {
                   </pre>
                 </div>
                 <p className="mt-2 text-xs text-muted-foreground">
+                  Input: {q.inputFormat || "—"} · Output: {q.outputFormat || "—"}
+                </p>
+                <p className="mt-2 text-xs text-muted-foreground">
                   Constraints: {(q.constraints ?? []).join(" · ")} · Time {q.timeLimitMs} ms · Memory{" "}
                   {q.memoryLimitMb} MB
                 </p>
+
               </li>
             ))}
           </ol>
