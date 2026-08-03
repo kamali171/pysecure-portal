@@ -287,10 +287,28 @@ function Faculty() {
     toast.success("Draft saved", { description: `${questions.length} questions stored locally` });
   }
 
+  function currentTestDraft(): Test {
+    return {
+      id: editingTestId ?? uid(),
+      title: title.trim() || "Daily Python Assessment",
+      topics: topics.length > 0 ? topics : [...new Set(questions.map((q) => q.topic))],
+      date: new Date().toISOString(),
+      durationMin: 60,
+      questions,
+      status: "published",
+      version: (publishedTest?.version ?? 0) + 1,
+    };
+  }
+
   function startPublish() {
     if (questions.length < MIN_QUESTIONS)
       return toast.error(`A test needs at least ${MIN_QUESTIONS} questions`, {
         description: `${questions.length}/${MIN_QUESTIONS} added so far`,
+      });
+    const errors = validateTestForPublish(currentTestDraft());
+    if (errors.length > 0)
+      return toast.error("Test is incomplete — publishing blocked", {
+        description: errors.slice(0, 4).join(" · "),
       });
     setReason("");
     setPublishOpen(true);
@@ -299,47 +317,44 @@ function Faculty() {
   function confirmPublish() {
     const session = getSession();
     const facultyName = session ? `${session.firstName} ${session.lastName}` : "Faculty";
+    const draft = currentTestDraft();
 
     if (publishedTest) {
       const before = publishedTest;
-      const updated: Test = { ...before, title: title.trim() || before.title, topics, questions, status: "published" };
+      const updated: Test = { ...before, ...draft, id: before.id, date: before.date };
       updateTest(updated);
-      const { students, upgraded } = reevaluateTest(updated);
+      const { students, upgraded, changes } = reevaluateTest(updated);
       addEditHistory({
         id: uid(),
         testId: updated.id,
         facultyName,
         at: new Date().toISOString(),
-        oldQuestion: before.questions.map((q) => q.title).join(", "),
-        newQuestion: questions.map((q) => q.title).join(", "),
+        version: updated.version,
+        oldQuestion: before.questions.map((q, i) => `Q${i + 1} ${q.title}`).join(", "),
+        newQuestion: questions.map((q, i) => `Q${i + 1} ${q.title}`).join(", "),
         oldHiddenTests: before.questions.map((q) => summarizeCases(q.hiddenTestCases)).join(" ‖ "),
         newHiddenTests: questions.map((q) => summarizeCases(q.hiddenTestCases)).join(" ‖ "),
         reason: reason.trim() || "Question / test-case correction",
         reevaluatedStudents: students,
+        marksChanges: changes,
       });
       setTests(getTests());
       setHistory(getEditHistory());
-      toast.success("Published test updated", {
-        description: `${students} student submissions re-evaluated · ${upgraded} answers upgraded`,
+      toast.success(`Published test updated — v${updated.version}`, {
+        description: `${students} submissions re-evaluated · ${upgraded} answers upgraded · ${changes.length} marks revised`,
       });
     } else {
-      const test: Test = {
-        id: uid(),
-        title: title.trim() || "Daily Python Assessment",
-        topics,
-        date: new Date().toISOString(),
-        durationMin: 60,
-        questions,
-        status: "published",
-      };
-      saveTest(test);
+      saveTest(draft);
       setTests(getTests());
-      setEditingTestId(test.id);
-      toast.success("Test published to all students");
+      setEditingTestId(draft.id);
+      toast.success("Test published — now live on every student dashboard", {
+        description: `${draft.questions.length} questions · ${draft.durationMin} min`,
+      });
     }
     clearDraft();
     setPublishOpen(false);
   }
+
 
   function loadForEditing(t: Test) {
     setEditingTestId(t.id);
