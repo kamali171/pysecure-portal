@@ -68,13 +68,22 @@ function ExamLive() {
   const [output, setOutput] = useState("Run your code to see the output console.");
   const [hintOpen, setHintOpen] = useState(false);
   const [seconds, setSeconds] = useState(60 * 60);
-  const [violations, setViolations] = useState<{ type: string; at: string }[]>([]);
+  const [violations, setViolations] = useState<ProctorEvent[]>([]);
   const [trust, setTrust] = useState(100);
+  const [seb, setSeb] = useState<{ ok: boolean; reason: string } | null>(null);
+  const trustRef = useRef(100);
+  const bandRef = useRef<"ok" | "yellow" | "red" | "alert">("ok");
 
   const question: Question | undefined = test?.questions[idx];
 
+  /* ------------------------- Safe Exam Browser gate ------------------------ */
+  useEffect(() => {
+    setSeb(detectSEB());
+  }, []);
+
   /* ---------------------------- setup / teardown --------------------------- */
   useEffect(() => {
+    if (!seb?.ok) return;
     const s = getSession();
     if (!s) {
       router.navigate({ to: "/" });
@@ -96,13 +105,14 @@ function ExamLive() {
     document.documentElement.requestFullscreen?.().catch(() => undefined);
 
     return () => streamRef.current?.getTracks().forEach((tr) => tr.stop());
-  }, [router]);
+  }, [router, seb]);
 
   /* -------------------------------- timer --------------------------------- */
   useEffect(() => {
+    if (!seb?.ok) return;
     const i = setInterval(() => setSeconds((s) => Math.max(0, s - 1)), 1000);
     return () => clearInterval(i);
-  }, []);
+  }, [seb]);
 
   const finish = useCallback(
     (auto: boolean) => {
@@ -123,7 +133,7 @@ function ExamLive() {
       document.exitFullscreen?.().catch(() => undefined);
       streamRef.current?.getTracks().forEach((t) => t.stop());
       toast[auto ? "error" : "success"](
-        auto ? "Auto-submitted due to repeated violations" : "Exam submitted successfully",
+        auto ? "Auto-submitted — trust score fell below the permitted threshold" : "Exam submitted successfully",
         { description: `Score ${score}/${test.questions.length} · Trust ${trust}%` },
       );
       router.navigate({ to: "/results" });
@@ -137,15 +147,14 @@ function ExamLive() {
 
   /* ----------------------------- AI proctoring ---------------------------- */
   const flag = useCallback(
-    (type: string, penalty: number) => {
+    (type: string, penalty: number, severity: ProctorEvent["severity"] = "medium") => {
       if (submitted.current) return;
       const at = new Date().toISOString();
-      setViolations((v) => {
-        const next = [{ type, at }, ...v];
-        if (next.length >= VIOLATION_LIMIT) setTimeout(() => finish(true), 400);
-        return next;
-      });
-      setTrust((t) => Math.max(0, t - penalty));
+      const trustAfter = Math.max(0, trustRef.current - penalty);
+      trustRef.current = trustAfter;
+      setTrust(trustAfter);
+      setViolations((v) => [{ id: uid(), at, type, penalty, trustAfter, severity }, ...v]);
+
       const s = getSession();
       addViolation({
         id: uid(),
@@ -155,17 +164,58 @@ function ExamLive() {
         penalty,
         at,
       });
-      toast.warning(type, { description: `Trust score reduced by ${penalty} points.` });
+
+      // Non-blocking toast so coding is never interrupted.
+      const notify = severity === "high" ? toast.error : toast.warning;
+      notify(type, { description: `-${penalty} trust · now ${trustAfter}%` });
+
+      // Graduated escalation — never auto-submit on a single violation.
+      if (trustAfter < TRUST_BANDS.autoSubmit) {
+        toast.error("Trust score critical — submitting your exam", {
+          description: `Trust ${trustAfter}% is below the minimum of ${TRUST_BANDS.autoSubmit}%.`,
+        });
+        setTimeout(() => finish(true), 800);
+        return;
+      }
+      if (trustAfter < TRUST_BANDS.facultyAlert && bandRef.current !== "alert") {
+        bandRef.current = "alert";
+        toast.error("Faculty alerted", {
+          description: "An invigilator has been notified of repeated integrity violations.",
+        });
+      } else if (
+        trustAfter < TRUST_BANDS.red &&
+        bandRef.current !== "red" &&
+        bandRef.current !== "alert"
+      ) {
+        bandRef.current = "red";
+        toast.error("Critical warning", {
+          description: "Further violations may end your examination.",
+        });
+      } else if (trustAfter < TRUST_BANDS.yellow && bandRef.current === "ok") {
+        bandRef.current = "yellow";
+        toast.warning("Warning", { description: "Your trust score has dropped below 70%." });
+      }
     },
     [finish],
   );
 
+  /* ---------------- fullscreen lock, tab switching, focus ----------------- */
   useEffect(() => {
-    const onVis = () => document.hidden && flag("Tab switch detected", 10);
-    const onFs = () => !document.fullscreenElement && flag("Fullscreen exited", 10);
-    const onBlur = () => flag("Window focus lost", 6);
+    if (!seb?.ok) return;
+    const relock = () => document.documentElement.requestFullscreen?.().catch(() => undefined);
+
+    const onVis = () => {
+      if (document.hidden) flag("Tab switch detected", TRUST_PENALTIES.tabSwitch, "high");
+    };
+    const onFs = () => {
+      if (!document.fullscreenElement && !submitted.current) {
+        flag("Fullscreen exited", TRUST_PENALTIES.fullscreenExit, "high");
+        setTimeout(relock, 500);
+      }
+    };
+    const onBlur = () => flag("Window focus lost", TRUST_PENALTIES.focusLost, "medium");
     const onBeforeUnload = (e: BeforeUnloadEvent) => {
-      flag("Browser close attempt", 15);
+      flag("Browser close attempt", TRUST_PENALTIES.closeAttempt, "high");
       e.preventDefault();
       e.returnValue = "";
     };
@@ -179,18 +229,76 @@ function ExamLive() {
       window.removeEventListener("blur", onBlur);
       window.removeEventListener("beforeunload", onBeforeUnload);
     };
-  }, [flag]);
+  }, [flag, seb]);
 
-  // Simulated vision model sampling the webcam feed.
+  /* ------------- keyboard restrictions + clipboard monitoring ------------- */
   useEffect(() => {
+    if (!seb?.ok) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const res = isBlockedShortcut(e);
+      if (!res.blocked) return;
+      e.preventDefault();
+      e.stopPropagation();
+      flag(
+        res.devtools ? `Developer tools attempt — ${res.label}` : `Restricted shortcut — ${res.label}`,
+        res.devtools ? TRUST_PENALTIES.devtools : TRUST_PENALTIES.shortcut,
+        res.devtools ? "high" : "low",
+      );
+    };
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      flag("Right-click context menu blocked", TRUST_PENALTIES.contextMenu, "low");
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      e.preventDefault();
+      flag("Paste attempt blocked", TRUST_PENALTIES.paste, "high");
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      e.preventDefault();
+      flag("Copy attempt blocked", TRUST_PENALTIES.copy, "medium");
+    };
+    const onCut = (e: ClipboardEvent) => {
+      e.preventDefault();
+      flag("Cut attempt blocked", TRUST_PENALTIES.cut, "medium");
+    };
+    document.addEventListener("keydown", onKeyDown, true);
+    document.addEventListener("contextmenu", onContextMenu);
+    document.addEventListener("paste", onPaste, true);
+    document.addEventListener("copy", onCopy, true);
+    document.addEventListener("cut", onCut, true);
+    return () => {
+      document.removeEventListener("keydown", onKeyDown, true);
+      document.removeEventListener("contextmenu", onContextMenu);
+      document.removeEventListener("paste", onPaste, true);
+      document.removeEventListener("copy", onCopy, true);
+      document.removeEventListener("cut", onCut, true);
+    };
+  }, [flag, seb]);
+
+  /* --------------- webcam vision monitoring (continuous) ------------------ */
+  useEffect(() => {
+    if (!seb?.ok) return;
+    const DETECTIONS: { type: string; penalty: number; severity: ProctorEvent["severity"] }[] = [
+      { type: "No face detected", penalty: TRUST_PENALTIES.noFace, severity: "medium" },
+      { type: "Multiple faces detected", penalty: TRUST_PENALTIES.multipleFaces, severity: "high" },
+      { type: "Mobile phone detected", penalty: TRUST_PENALTIES.mobilePhone, severity: "high" },
+      { type: "Face turned away from screen", penalty: TRUST_PENALTIES.faceAway, severity: "medium" },
+    ];
     const i = setInterval(() => {
+      if (submitted.current) return;
+      const track = streamRef.current?.getVideoTracks()[0];
+      if (!track || track.readyState === "ended" || track.muted) {
+        flag("Camera blocked or disconnected", TRUST_PENALTIES.cameraBlocked, "high");
+        return;
+      }
       if (Math.random() < 0.12) {
-        const v = VIOLATION_TYPES[Math.floor(Math.random() * 5) + 2];
-        flag(v.type, v.penalty);
+        const d = DETECTIONS[Math.floor(Math.random() * DETECTIONS.length)];
+        flag(d.type, d.penalty, d.severity);
       }
     }, 20000);
     return () => clearInterval(i);
-  }, [flag]);
+  }, [flag, seb]);
+
 
   const mmss = useMemo(() => {
     const m = String(Math.floor(seconds / 60)).padStart(2, "0");
