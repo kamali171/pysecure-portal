@@ -498,22 +498,23 @@ function ExamLive() {
             {violations.length === 0 ? (
               <p className="text-xs text-muted-foreground">No violations recorded. Keep it up.</p>
             ) : (
-              <ul className="space-y-2">
-                {violations.slice(0, 6).map((v, i) => (
+              <ul className="max-h-72 space-y-2 overflow-auto pr-1">
+                {violations.map((v) => (
                   <li
-                    key={i}
+                    key={v.id}
                     className="rounded-lg border border-destructive/25 bg-destructive/8 p-2.5"
                   >
                     <p className="text-xs font-semibold text-destructive">{v.type}</p>
                     <p className="text-[11px] text-muted-foreground">
-                      {new Date(v.at).toLocaleTimeString()}
+                      {new Date(v.at).toLocaleTimeString()} · -{v.penalty} · trust {v.trustAfter}%
                     </p>
                   </li>
                 ))}
               </ul>
             )}
             <p className="mt-3 text-[11px] text-muted-foreground">
-              Auto-submission triggers at {VIOLATION_LIMIT} violations.
+              Warning at {TRUST_BANDS.yellow}% · critical at {TRUST_BANDS.red}% · faculty alert at{" "}
+              {TRUST_BANDS.facultyAlert}% · auto-submit below {TRUST_BANDS.autoSubmit}%.
             </p>
           </div>
         </aside>
