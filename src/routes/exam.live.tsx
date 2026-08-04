@@ -306,6 +306,29 @@ function ExamLive() {
     return `${m}:${s}`;
   }, [seconds]);
 
+  if (seb && !seb.ok) {
+    return (
+      <div className="grid min-h-screen place-items-center p-6">
+        <div className="glass rise max-w-lg rounded-3xl p-8 text-center">
+          <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/15 text-destructive">
+            <ShieldCheck className="size-7" />
+          </span>
+          <h1 className="mt-5 text-2xl font-bold">Please open this examination using Safe Exam Browser.</h1>
+          <p className="mt-3 text-sm text-muted-foreground">
+            Safe Exam Browser was not detected on this device ({seb.reason}). The exam stays locked
+            until the kiosk environment is running.
+          </p>
+          <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
+            <Button onClick={() => setSeb(detectSEB())}>Re-check Safe Exam Browser</Button>
+            <Button variant="outline" onClick={() => router.navigate({ to: "/exam/check" })}>
+              Back to system check
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!test || !question) return null;
 
   const run = () => {
