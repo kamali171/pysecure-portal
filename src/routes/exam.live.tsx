@@ -343,7 +343,7 @@ function ExamLive() {
             >
               <AlertTriangle className="size-4" />
               <span className="text-sm font-semibold">
-                {violations.length}/{VIOLATION_LIMIT}
+                {violations.length} {violations.length === 1 ? "violation" : "violations"}
               </span>
             </div>
             <Button size="sm" variant="secondary" className="gap-2" onClick={() => finish(false)}>
