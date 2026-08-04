@@ -13,6 +13,7 @@ import {
   XCircle,
   Camera,
 } from "lucide-react";
+import { detectSEB, setSEBOverride } from "@/lib/pysecure";
 
 export const Route = createFileRoute("/exam/check")({
   ssr: false,
@@ -59,6 +60,7 @@ function SystemCheck() {
     seb: "pending",
   });
   const [running, setRunning] = useState(false);
+  const [sebReason, setSebReason] = useState("");
 
   const set = (k: CheckKey, v: Status) => setStatus((s) => ({ ...s, [k]: v }));
 
@@ -95,8 +97,10 @@ function SystemCheck() {
 
     set("seb", "checking");
     await wait(700);
-    // Lockdown handshake: real SEB injects a UA token. Demo accepts a secure context.
-    set("seb", window.isSecureContext ? "pass" : "fail");
+    // Lockdown handshake: real SEB injects a UA token / JS API.
+    const sebResult = detectSEB();
+    setSebReason(sebResult.reason);
+    set("seb", sebResult.ok ? "pass" : "fail");
     setRunning(false);
   }, []);
 
@@ -142,7 +146,9 @@ function SystemCheck() {
                   </span>
                   <div className="flex-1">
                     <p className="font-semibold">{META[k].label}</p>
-                    <p className="text-xs text-muted-foreground">{META[k].hint}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {k === "seb" && sebReason ? sebReason : META[k].hint}
+                    </p>
                   </div>
                   {s === "pass" && <CheckCircle2 className="size-6 text-success" />}
                   {s === "fail" && <XCircle className="size-6 text-destructive" />}
@@ -163,9 +169,24 @@ function SystemCheck() {
             {allPass ? "Continue to Exam Rules" : "Resolve failed checks to continue"}
           </Button>
           {!allPass && !running && (
-            <p className="mt-3 text-center text-xs text-destructive">
-              Start Exam is disabled until every requirement passes.
-            </p>
+            <>
+              <p className="mt-3 text-center text-xs text-destructive">
+                Start Exam is disabled until every requirement passes.
+              </p>
+              {status.seb === "fail" && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="mt-2 w-full text-xs"
+                  onClick={() => {
+                    setSEBOverride(true);
+                    runChecks();
+                  }}
+                >
+                  Invigilator override (supervised drill only)
+                </Button>
+              )}
+            </>
           )}
         </div>
 
