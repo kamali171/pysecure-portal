@@ -390,7 +390,7 @@ function ExamLive() {
           <div className="mt-5 rounded-xl bg-secondary/70 p-3">
             <p className="text-xs font-medium text-muted-foreground">Trust Score</p>
             <p
-              className={`font-display text-3xl font-bold ${trust > 70 ? "text-success" : trust > 40 ? "text-warning" : "text-destructive"}`}
+              className={`font-display text-3xl font-bold ${trust >= TRUST_BANDS.yellow ? "text-success" : trust >= TRUST_BANDS.red ? "text-warning" : "text-destructive"}`}
             >
               {trust}%
             </p>
