@@ -889,3 +889,82 @@ export function getLeaderboard(testId: string) {
     })
     .sort((a, b) => b.score - a.score || b.trustScore - a.trustScore);
 }
+
+/* --------------------------- exam integrity engine -------------------------- */
+
+/** Penalty applied to the trust score per violation category. */
+export const TRUST_PENALTIES = {
+  tabSwitch: 5,
+  fullscreenExit: 5,
+  focusLost: 3,
+  paste: 5,
+  copy: 3,
+  cut: 3,
+  shortcut: 2,
+  devtools: 8,
+  contextMenu: 1,
+  noFace: 2,
+  multipleFaces: 5,
+  mobilePhone: 10,
+  faceAway: 3,
+  cameraBlocked: 6,
+  closeAttempt: 8,
+} as const;
+
+/** Graduated trust-score bands — no instant auto-submit on a single violation. */
+export const TRUST_BANDS = {
+  yellow: 70,
+  red: 50,
+  facultyAlert: 30,
+  autoSubmit: 10,
+} as const;
+
+export type ProctorEvent = {
+  id: string;
+  at: string;
+  type: string;
+  penalty: number;
+  trustAfter: number;
+  severity: "low" | "medium" | "high";
+};
+
+/**
+ * Safe Exam Browser detection.
+ * Real SEB exposes a `SafeExamBrowser` global and appends "SEB/<version>" to the
+ * user agent. A signed config key header is also present in kiosk deployments.
+ * A `?seb=1` query flag or the stored override lets invigilators run drills.
+ */
+export function detectSEB(): { ok: boolean; reason: string } {
+  if (typeof window === "undefined") return { ok: false, reason: "server" };
+  const ua = navigator.userAgent || "";
+  if (/\bSEB[\s/]/i.test(ua) || /SafeExamBrowser/i.test(ua))
+    return { ok: true, reason: "SEB user agent detected" };
+  if ((window as unknown as { SafeExamBrowser?: unknown }).SafeExamBrowser)
+    return { ok: true, reason: "SEB JavaScript API detected" };
+  try {
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("seb") === "1")
+      return { ok: true, reason: "Invigilator drill mode (?seb=1)" };
+  } catch {
+    /* ignore */
+  }
+  if (window.localStorage.getItem("pysecure.sebOverride") === "1")
+    return { ok: true, reason: "Invigilator override enabled" };
+  return { ok: false, reason: "Safe Exam Browser not detected" };
+}
+
+export function setSEBOverride(on: boolean) {
+  if (on) window.localStorage.setItem("pysecure.sebOverride", "1");
+  else window.localStorage.removeItem("pysecure.sebOverride");
+}
+
+/** Blocked keyboard shortcuts inside the exam. */
+export function isBlockedShortcut(e: KeyboardEvent) {
+  const k = e.key.toLowerCase();
+  if (e.key === "F12") return { blocked: true, label: "F12 (developer tools)", devtools: true };
+  if ((e.ctrlKey || e.metaKey) && e.shiftKey && ["i", "j", "c"].includes(k))
+    return { blocked: true, label: `Ctrl+Shift+${k.toUpperCase()} (developer tools)`, devtools: true };
+  if ((e.ctrlKey || e.metaKey) && ["c", "v", "x", "a", "s", "p", "u"].includes(k))
+    return { blocked: true, label: `Ctrl+${k.toUpperCase()} blocked`, devtools: false };
+  return { blocked: false, label: "", devtools: false };
+}
