@@ -450,6 +450,13 @@ function ExamLive() {
             </div>
             <textarea
               spellCheck={false}
+              autoComplete="off"
+              autoCorrect="off"
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onPaste={(e) => e.preventDefault()}
+              onDrop={(e) => e.preventDefault()}
+              onContextMenu={(e) => e.preventDefault()}
               value={code[question.id] ?? ""}
               onChange={(e) => setCode((c) => ({ ...c, [question.id]: e.target.value }))}
               className="h-72 w-full resize-none bg-transparent px-4 py-3 font-mono text-sm text-background outline-none"
