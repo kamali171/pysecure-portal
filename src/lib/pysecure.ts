@@ -144,8 +144,8 @@ export const TOPICS = [
   "OOP in Python",
 ];
 
-export const DEPARTMENTS = ["CSE", "IT", "AI & DS", "ECE", "EEE", "MECH", "CIVIL"];
-export const YEARS = ["I", "II", "III", "IV"];
+export const DEPARTMENTS = ["AI & DS", "CSE", "IT", "ECE", "EEE", "MECH", "CIVIL"];
+export const YEARS = ["1st Year", "2nd Year", "3rd Year", "4th Year"];
 export const SECTIONS = ["A", "B", "C"];
 
 const KEYS = {
@@ -931,8 +931,7 @@ export type ProctorEvent = {
 /**
  * Safe Exam Browser detection.
  * Real SEB exposes a `SafeExamBrowser` global and appends "SEB/<version>" to the
- * user agent. A signed config key header is also present in kiosk deployments.
- * A `?seb=1` query flag or the stored override lets invigilators run drills.
+ * user agent. The exam must only continue when this environment is confirmed.
  */
 export function detectSEB(): { ok: boolean; reason: string } {
   if (typeof window === "undefined") return { ok: false, reason: "server" };
@@ -941,21 +940,7 @@ export function detectSEB(): { ok: boolean; reason: string } {
     return { ok: true, reason: "SEB user agent detected" };
   if ((window as unknown as { SafeExamBrowser?: unknown }).SafeExamBrowser)
     return { ok: true, reason: "SEB JavaScript API detected" };
-  try {
-    const url = new URL(window.location.href);
-    if (url.searchParams.get("seb") === "1")
-      return { ok: true, reason: "Invigilator drill mode (?seb=1)" };
-  } catch {
-    /* ignore */
-  }
-  if (window.localStorage.getItem("pysecure.sebOverride") === "1")
-    return { ok: true, reason: "Invigilator override enabled" };
   return { ok: false, reason: "Safe Exam Browser not detected" };
-}
-
-export function setSEBOverride(on: boolean) {
-  if (on) window.localStorage.setItem("pysecure.sebOverride", "1");
-  else window.localStorage.removeItem("pysecure.sebOverride");
 }
 
 /** Blocked keyboard shortcuts inside the exam. */

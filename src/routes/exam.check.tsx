@@ -13,7 +13,7 @@ import {
   XCircle,
   Camera,
 } from "lucide-react";
-import { detectSEB, setSEBOverride } from "@/lib/pysecure";
+import { detectSEB } from "@/lib/pysecure";
 
 export const Route = createFileRoute("/exam/check")({
   ssr: false,
@@ -112,6 +112,7 @@ function SystemCheck() {
   const values = ORDER.map((k) => status[k]);
   const done = values.filter((v) => v === "pass" || v === "fail").length;
   const allPass = values.every((v) => v === "pass");
+  const sebBlocked = status.seb === "fail";
 
   return (
     <AppShell>
@@ -127,10 +128,16 @@ function SystemCheck() {
               {done}/{ORDER.length} verified
             </span>
             <Button variant="outline" size="sm" onClick={runChecks} disabled={running}>
-              Re-run checks
+              Retry Detection
             </Button>
           </div>
           <Progress value={(done / ORDER.length) * 100} className="mb-6" />
+
+          {sebBlocked && (
+            <div className="mb-5 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
+              This assessment can only be taken using Safe Exam Browser.
+            </div>
+          )}
 
           <ul className="space-y-3">
             {ORDER.map((k) => {
@@ -169,24 +176,9 @@ function SystemCheck() {
             {allPass ? "Continue to Exam Rules" : "Resolve failed checks to continue"}
           </Button>
           {!allPass && !running && (
-            <>
-              <p className="mt-3 text-center text-xs text-destructive">
-                Start Exam is disabled until every requirement passes.
-              </p>
-              {status.seb === "fail" && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="mt-2 w-full text-xs"
-                  onClick={() => {
-                    setSEBOverride(true);
-                    runChecks();
-                  }}
-                >
-                  Invigilator override (supervised drill only)
-                </Button>
-              )}
-            </>
+            <p className="mt-3 text-center text-xs text-destructive">
+              Start Exam is disabled until every requirement passes.
+            </p>
           )}
         </div>
 
