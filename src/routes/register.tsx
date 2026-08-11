@@ -55,6 +55,7 @@ const EMPTY_FORM = {
 
 type FormState = typeof EMPTY_FORM;
 type FormField = keyof FormState;
+type TrackedField = FormField | "photo";
 
 const registrationSchema = z
   .object({
@@ -178,8 +179,8 @@ function Register() {
   const router = useRouter();
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [photo, setPhoto] = useState<string | undefined>();
-  const [touched, setTouched] = useState<Partial<Record<FormField, boolean>>>({});
-  const [errors, setErrors] = useState<Partial<Record<FormField, string>>>({});
+  const [touched, setTouched] = useState<Partial<Record<TrackedField, boolean>>>({});
+  const [errors, setErrors] = useState<Partial<Record<TrackedField, string>>>({});
   const [submitAttempted, setSubmitAttempted] = useState(false);
 
   const updateField = useCallback((field: FormField, value: string) => {
@@ -226,7 +227,7 @@ function Register() {
   );
 
   const validateAllFields = useCallback((values: FormState) => {
-    const nextErrors: Partial<Record<FormField, string>> = {};
+    const nextErrors: Partial<Record<TrackedField, string>> = {};
 
     for (const field of Object.keys(EMPTY_FORM) as FormField[]) {
       const message = validateField(field, values[field], values);
@@ -277,7 +278,7 @@ function Register() {
 
       const parsed = registrationSchema.safeParse(form);
       if (!parsed.success) {
-        const errs: Partial<Record<FormField, string>> = {};
+        const errs: Partial<Record<TrackedField, string>> = {};
         for (const issue of parsed.error.issues) {
           const key = String(issue.path[0] ?? "");
           if (key) errs[key as FormField] = issue.message;

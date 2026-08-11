@@ -8,7 +8,6 @@ import {
   activeTest,
   addResult,
   addViolation,
-  detectSEB,
   getSession,
   isBlockedShortcut,
   runPython,
@@ -20,6 +19,7 @@ import {
   type AuthSession,
   type Test,
 } from "@/lib/pysecure";
+import { SEB_BLOCK_MESSAGE, SEB_GUIDANCE, verifySEB, type SebDetection } from "@/lib/seb";
 import {
   AlertTriangle,
   ChevronLeft,
@@ -70,7 +70,7 @@ function ExamLive() {
   const [seconds, setSeconds] = useState(60 * 60);
   const [violations, setViolations] = useState<ProctorEvent[]>([]);
   const [trust, setTrust] = useState(100);
-  const [seb, setSeb] = useState<{ ok: boolean; reason: string } | null>(null);
+  const [seb, setSeb] = useState<SebDetection | null>(null);
   const trustRef = useRef(100);
   const bandRef = useRef<"ok" | "yellow" | "red" | "alert">("ok");
 
@@ -78,7 +78,7 @@ function ExamLive() {
 
   /* ------------------------- Safe Exam Browser gate ------------------------ */
   useEffect(() => {
-    setSeb(detectSEB());
+    void verifySEB().then(setSeb);
   }, []);
 
   /* ---------------------------- setup / teardown --------------------------- */
@@ -313,13 +313,18 @@ function ExamLive() {
           <span className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/15 text-destructive">
             <ShieldCheck className="size-7" />
           </span>
-          <h1 className="mt-5 text-2xl font-bold">Please open this examination using Safe Exam Browser.</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Safe Exam Browser was not detected on this device ({seb.reason}). The exam stays locked
-            until the kiosk environment is running.
-          </p>
+          <h1 className="mt-5 text-2xl font-bold">{SEB_BLOCK_MESSAGE}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{seb.reason}.</p>
+          <ul className="mt-4 space-y-2 text-left text-sm text-muted-foreground">
+            {SEB_GUIDANCE.map((g) => (
+              <li key={g} className="flex gap-2">
+                <span className="text-destructive">•</span>
+                <span>{g}</span>
+              </li>
+            ))}
+          </ul>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button onClick={() => setSeb(detectSEB())}>Re-check Safe Exam Browser</Button>
+            <Button onClick={() => void verifySEB().then(setSeb)}>Retry Detection</Button>
             <Button variant="outline" onClick={() => router.navigate({ to: "/exam/check" })}>
               Back to system check
             </Button>

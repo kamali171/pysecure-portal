@@ -22,6 +22,7 @@ import { Route as ExamLiveRouteImport } from './routes/exam.live'
 import { Route as ExamRulesRouteImport } from './routes/exam.rules'
 import { Route as FacultyLoginRouteImport } from './routes/faculty.login'
 import { Route as StudentLoginRouteImport } from './routes/student.login'
+import { Route as ApiPublicSebStatusRouteImport } from './routes/api/public/seb-status'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -88,6 +89,11 @@ const StudentLoginRoute = StudentLoginRouteImport.update({
   path: '/student/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPublicSebStatusRoute = ApiPublicSebStatusRouteImport.update({
+  id: '/api/public/seb-status',
+  path: '/api/public/seb-status',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -103,6 +109,7 @@ export interface FileRoutesByFullPath {
   '/exam/rules': typeof ExamRulesRoute
   '/faculty/login': typeof FacultyLoginRoute
   '/student/login': typeof StudentLoginRoute
+  '/api/public/seb-status': typeof ApiPublicSebStatusRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -118,6 +125,7 @@ export interface FileRoutesByTo {
   '/exam/rules': typeof ExamRulesRoute
   '/faculty/login': typeof FacultyLoginRoute
   '/student/login': typeof StudentLoginRoute
+  '/api/public/seb-status': typeof ApiPublicSebStatusRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -134,6 +142,7 @@ export interface FileRoutesById {
   '/exam/rules': typeof ExamRulesRoute
   '/faculty/login': typeof FacultyLoginRoute
   '/student/login': typeof StudentLoginRoute
+  '/api/public/seb-status': typeof ApiPublicSebStatusRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -151,6 +160,7 @@ export interface FileRouteTypes {
     | '/exam/rules'
     | '/faculty/login'
     | '/student/login'
+    | '/api/public/seb-status'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
     | '/exam/rules'
     | '/faculty/login'
     | '/student/login'
+    | '/api/public/seb-status'
   id:
     | '__root__'
     | '/'
@@ -181,6 +192,7 @@ export interface FileRouteTypes {
     | '/exam/rules'
     | '/faculty/login'
     | '/student/login'
+    | '/api/public/seb-status'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -195,6 +207,7 @@ export interface RootRouteChildren {
   ExamLiveRoute: typeof ExamLiveRoute
   ExamRulesRoute: typeof ExamRulesRoute
   StudentLoginRoute: typeof StudentLoginRoute
+  ApiPublicSebStatusRoute: typeof ApiPublicSebStatusRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -290,6 +303,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof StudentLoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/public/seb-status': {
+      id: '/api/public/seb-status'
+      path: '/api/public/seb-status'
+      fullPath: '/api/public/seb-status'
+      preLoaderRoute: typeof ApiPublicSebStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -326,17 +346,8 @@ const rootRouteChildren: RootRouteChildren = {
   ExamLiveRoute: ExamLiveRoute,
   ExamRulesRoute: ExamRulesRoute,
   StudentLoginRoute: StudentLoginRoute,
+  ApiPublicSebStatusRoute: ApiPublicSebStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
-
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
-  interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
-  }
-}

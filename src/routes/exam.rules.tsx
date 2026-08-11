@@ -1,9 +1,10 @@
 import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { AppShell, PageTitle } from "@/components/app-shell";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { VIOLATION_LIMIT, detectSEB } from "@/lib/pysecure";
+import { VIOLATION_LIMIT } from "@/lib/pysecure";
+import { SEB_BLOCK_MESSAGE, SEB_GUIDANCE, verifySEB, type SebDetection } from "@/lib/seb";
 import { AlertTriangle } from "lucide-react";
 
 export const Route = createFileRoute("/exam/rules")({
@@ -53,25 +54,42 @@ const RULES = [
 function Rules() {
   const router = useRouter();
   const [accepted, setAccepted] = useState(false);
-  const seb = detectSEB();
+  const [seb, setSeb] = useState<SebDetection | null>(null);
+
+  const recheck = useCallback(() => {
+    void verifySEB().then(setSeb);
+  }, []);
+
+  useEffect(() => recheck(), [recheck]);
+
+  if (!seb) return null;
 
   if (!seb.ok) {
     return (
       <AppShell>
         <PageTitle
           title="Safe Exam Browser Required"
-          subtitle="This assessment can only be taken using Safe Exam Browser."
+          subtitle={SEB_BLOCK_MESSAGE}
         />
         <div className="glass rise mx-auto max-w-xl rounded-3xl p-8 text-center">
           <div className="mx-auto grid size-14 place-items-center rounded-2xl bg-destructive/15 text-destructive">
             <AlertTriangle className="size-7" />
           </div>
-          <h1 className="mt-5 text-2xl font-bold">This assessment can only be taken using Safe Exam Browser.</h1>
-          <p className="mt-3 text-sm text-muted-foreground">
-            Safe Exam Browser was not detected on this device ({seb.reason}). The exam remains locked until you open it inside the approved kiosk environment.
-          </p>
+          <h1 className="mt-5 text-2xl font-bold">{SEB_BLOCK_MESSAGE}</h1>
+          <p className="mt-3 text-sm text-muted-foreground">{seb.reason}.</p>
+          <ul className="mt-4 space-y-2 text-left text-sm text-muted-foreground">
+            {SEB_GUIDANCE.map((g) => (
+              <li key={g} className="flex gap-2">
+                <span className="text-destructive">•</span>
+                <span>{g}</span>
+              </li>
+            ))}
+          </ul>
           <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-center">
-            <Button onClick={() => router.navigate({ to: "/exam/check" })}>Retry Detection</Button>
+            <Button onClick={recheck}>Retry Detection</Button>
+            <Button variant="outline" onClick={() => router.navigate({ to: "/exam/check" })} className="sm:w-40">
+              System Check
+            </Button>
             <Link to="/dashboard" className="sm:w-40">
               <Button variant="outline" className="w-full">
                 Back to Dashboard

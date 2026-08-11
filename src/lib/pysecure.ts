@@ -930,18 +930,11 @@ export type ProctorEvent = {
 
 /**
  * Safe Exam Browser detection.
- * Real SEB exposes a `SafeExamBrowser` global and appends "SEB/<version>" to the
- * user agent. The exam must only continue when this environment is confirmed.
+ * Kept as a thin re-export so existing imports keep working — the real
+ * implementation lives in `@/lib/seb` (the shared detection service).
  */
-export function detectSEB(): { ok: boolean; reason: string } {
-  if (typeof window === "undefined") return { ok: false, reason: "server" };
-  const ua = navigator.userAgent || "";
-  if (/\bSEB[\s/]/i.test(ua) || /SafeExamBrowser/i.test(ua))
-    return { ok: true, reason: "SEB user agent detected" };
-  if ((window as unknown as { SafeExamBrowser?: unknown }).SafeExamBrowser)
-    return { ok: true, reason: "SEB JavaScript API detected" };
-  return { ok: false, reason: "Safe Exam Browser not detected" };
-}
+export { detectSEBSync as detectSEB, verifySEB, SEB_BLOCK_MESSAGE, SEB_GUIDANCE } from "./seb";
+export type { SebDetection, SebSignal } from "./seb";
 
 /** Blocked keyboard shortcuts inside the exam. */
 export function isBlockedShortcut(e: KeyboardEvent) {
