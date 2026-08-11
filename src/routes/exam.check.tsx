@@ -13,7 +13,7 @@ import {
   XCircle,
   Camera,
 } from "lucide-react";
-import { detectSEB } from "@/lib/pysecure";
+import { SEB_BLOCK_MESSAGE, SEB_GUIDANCE, verifySEB, type SebDetection } from "@/lib/seb";
 
 export const Route = createFileRoute("/exam/check")({
   ssr: false,
@@ -60,7 +60,7 @@ function SystemCheck() {
     seb: "pending",
   });
   const [running, setRunning] = useState(false);
-  const [sebReason, setSebReason] = useState("");
+  const [seb, setSeb] = useState<SebDetection | null>(null);
 
   const set = (k: CheckKey, v: Status) => setStatus((s) => ({ ...s, [k]: v }));
 
@@ -97,9 +97,9 @@ function SystemCheck() {
 
     set("seb", "checking");
     await wait(700);
-    // Lockdown handshake: real SEB injects a UA token / JS API.
-    const sebResult = detectSEB();
-    setSebReason(sebResult.reason);
+    // Lockdown handshake: UA token, injected JS API and SEB request headers.
+    const sebResult = await verifySEB();
+    setSeb(sebResult);
     set("seb", sebResult.ok ? "pass" : "fail");
     setRunning(false);
   }, []);
@@ -135,7 +135,21 @@ function SystemCheck() {
 
           {sebBlocked && (
             <div className="mb-5 rounded-2xl border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-              This assessment can only be taken using Safe Exam Browser.
+              <p className="font-semibold">{SEB_BLOCK_MESSAGE}</p>
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-destructive/90">
+                {SEB_GUIDANCE.map((g) => (
+                  <li key={g}>{g}</li>
+                ))}
+              </ul>
+              {seb && (
+                <ul className="mt-3 space-y-1 text-xs text-destructive/80">
+                  {seb.signals.map((sig) => (
+                    <li key={sig.name}>
+                      {sig.ok ? "✔" : "✖"} {sig.label} — {sig.detail}
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           )}
 
@@ -154,7 +168,7 @@ function SystemCheck() {
                   <div className="flex-1">
                     <p className="font-semibold">{META[k].label}</p>
                     <p className="text-xs text-muted-foreground">
-                      {k === "seb" && sebReason ? sebReason : META[k].hint}
+                      {k === "seb" && seb ? seb.reason : META[k].hint}
                     </p>
                   </div>
                   {s === "pass" && <CheckCircle2 className="size-6 text-success" />}
